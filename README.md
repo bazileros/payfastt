@@ -166,4 +166,4 @@ A `SKILL.md` ships with the npm package for AI agent discoverability. Compatible
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Apache 2.0 — see [LICENSE](LICENSE).

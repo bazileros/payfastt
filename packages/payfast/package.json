@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"type": "module",
 	"description": "PayFast payment gateway Convex component — one-time payments, subscriptions, tokenized charges, refunds, and ITN webhooks",
-	"license": "MIT",
+	"license": "Apache-2.0",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/bazileros/payfastt",
