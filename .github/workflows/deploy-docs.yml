@@ -1,0 +1,31 @@
+name: Deploy docs
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/fumadocs/**"
+      - "packages/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build fumadocs
+        run: bunx turbo build --filter=@payfastt/fumadocs
+
+      - name: Deploy to Cloudflare Pages
+        run: npx wrangler pages deploy apps/fumadocs/.output/public --project-name=payfastt-docs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
