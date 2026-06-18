@@ -9,7 +9,7 @@ build
 *.tsbuildinfo
 
 # Generated files
-apps/web/src/routeTree.gen.ts
+**/routeTree.gen.ts
 
 # Environment variables
 .env
@@ -52,3 +52,10 @@ coverage
 .cache
 tmp
 temp
+
+# Agent config (local dev only)
+.agents
+skills
+opencode.json
+PRD.md
+CONTEXT.md

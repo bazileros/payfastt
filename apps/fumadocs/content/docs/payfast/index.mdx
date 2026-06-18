@@ -1,36 +1,148 @@
 ---
-title: @bazileros/payfast
-description: PayFast payment gateway Convex component
-icon: BankNote
+title: "@bazileros/payfast"
+description: PayFast payment gateway Convex component — one-time payments, subscriptions, tokenized charges, refunds, and ITN webhooks
+icon: Wallet
 ---
 
-`@bazileros/payfast` is a private Convex component that integrates the [PayFast](https://www.payfast.co.za) South African payment gateway into your Convex app. It provides one-time payments, recurring billing, tokenized charges, refunds, and ITN webhook processing.
+import { CreditCard, RefreshCw, Webhook, Code, Server, ShieldCheck } from "lucide-react";
+
+`@bazileros/payfast` integrates the [PayFast](https://www.payfast.co.za) South African payment gateway into your Convex app. It handles the two PayFast integration modes and processes ITN webhooks automatically.
 
 ## Features
 
-- **One-time payments** — generate signed PayFast checkout forms that redirect users to PayFast
-- **Recurring billing** — create and manage subscriptions (pause, unpause, cancel, update)
-- **Tokenized charges** — charge against an existing subscription token
-- **ITN webhook** — automatic processing with echo-back validation and database persistence
-- **React hooks** — `usePayfastCheckout`, `useTransactions`, `useSubscriptions`, `useSubscriptionActions`
-- **Server-side client** — `Payfast` class with typed wrapper methods and optional `getUserInfo` auto-resolution
-- **ITN event handlers** — dispatch custom logic on payment complete, cancelled, refunded, or subscription events
+<Cards>
+  <Card title="One-time payments" icon={<CreditCard />} href="/docs/payfast/checkout">
+    Generate signed PayFast checkout forms with Custom Integration redirect
+  </Card>
+  <Card title="Subscriptions" icon={<RefreshCw />} href="/docs/payfast/subscriptions">
+    Recurring billing with pause, cancel, update, and ad-hoc charges
+  </Card>
+  <Card title="ITN Webhooks" icon={<Webhook />} href="/docs/payfast/itn-webhooks">
+    Echo-back validation, database persistence, and typed event handlers
+  </Card>
+  <Card title="React Hooks" icon={<Code />} href="/docs/payfast/react-hooks">
+    usePayfastCheckout, useTransactions, useSubscriptions, useSubscriptionActions
+  </Card>
+  <Card title="Server-side API" icon={<Server />} href="/docs/payfast/server-side">
+    Payfast class with typed wrapper methods and getUserInfo auto-resolution
+  </Card>
+  <Card title="Best Practices" icon={<ShieldCheck />} href="/docs/payfast/best-practices">
+    Security, testing, idempotency, and production patterns
+  </Card>
+</Cards>
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   Your Convex App                    │
+│                                                      │
+│  ┌─────────────┐  ┌──────────────┐  ┌────────────┐ │
+│  │  React App  │  │  convex/     │  │  convex/   │ │
+│  │             │  │  functions   │  │  http.ts   │ │
+│  │  usePayfast │──│  runAction() │  │            │ │
+│  │  Checkout   │  │  runQuery()  │  │registerRts│ │
+│  └─────────────┘  └──────┬───────┘  └─────┬──────┘ │
+│                          │                 │        │
+│                    ┌─────▼─────────────────▼─────┐  │
+│                    │  @bazileros/payfast          │  │
+│                    │  ┌───────────────────────┐  │  │
+│                    │  │ component/lib.ts      │  │  │
+│                    │  │  queries & mutations  │  │  │
+│                    │  │  actions (REST API)   │  │  │
+│                    │  ├───────────────────────┤  │  │
+│                    │  │ component/http.ts     │  │  │
+│                    │  │  ITN echo-back +      │  │  │
+│                    │  │  signature validation │  │  │
+│                    │  ├───────────────────────┤  │  │
+│                    │  │ schema.ts             │  │  │
+│                    │  │  transactions         │  │  │
+│                    │  │  subscriptions        │  │  │
+│                    │  │  userProfiles         │  │  │
+│                    │  │  itnLogs              │  │  │
+│                    │  └───────────────────────┘  │  │
+│                    └─────────────────────────────┘  │
+│                                                      │
+│  ┌─────────────────────────────────────┐            │
+│  │  Convex Env (ctx.env)               │            │
+│  │  PAYFAST_MERCHANT_ID                │            │
+│  │  PAYFAST_MERCHANT_KEY               │            │
+│  │  PAYFAST_PASSPHRASE                 │            │
+│  │  PAYFAST_SANDBOX                    │            │
+│  └─────────────────────────────────────┘            │
+└──────────────────┬──────────────────────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────┐
+│           PayFast Gateway            │
+│                                      │
+│  POST /eng/process                   │
+│  POST /eng/process/validate          │
+│  POST /eng/recurring/{token}/cancel  │
+│  POST /eng/recurring/{token}/pause   │
+│  POST /eng/recurring/{token}/unpause │
+│  POST /eng/recurring/{token}/update  │
+└──────────────────────────────────────┘
+```
+
+## Integration modes
+
+The component supports both of PayFast's integration modes:
+
+| Mode | Use case | How it works |
+|---|---|---|
+| **Custom Integration** | One-time payments, subscription signup | Generate signed HTML form → redirect buyer to PayFast → return via return/cancel URL |
+| **REST API** | Subscription management, refunds, tokenized charges | Server-to-server authenticated requests using header signing |
+
+## Design decisions
+
+<Accordion title="Why ctx.env instead of process.env?">
+  Convex components declare required env vars in `defineComponent({ env: {...} })` using Zod-style validators. This is enforced at deploy time — Convex prompts the developer for every declared var. Access is via `ctx.env.PAYFAST_MERCHANT_ID`, providing full type safety. The old approach (`process.env`) caused silent checkout failures when a passphrase was missing.
+</Accordion>
+
+<Accordion title="Why are React hooks parameter-based instead of using a Provider?">
+  Convex components are accessed via the consumer's `_generated/api` references (`components.payfast`). A Provider pattern would hide this dependency and make the hooks harder to use in non-React contexts. Parameter-based hooks are explicit, testable, and work with any React rendering pattern.
+</Accordion>
+
+<Accordion title="Why is sandbox a constructor option and also an env var?">
+  The global sandbox mode is set via `PAYFAST_SANDBOX` in Convex env (applies to server-side operations like REST API calls). The `Payfast` class constructor accepts `{ sandbox: true }` as an override, useful for testing specific requests against sandbox while the rest of the app runs in production.
+</Accordion>
 
 ## Quick start
 
-```bash
-pnpm add @bazileros/payfast
-```
+<Steps>
+  <Step>
+    Install the package
 
-Register the component in your `convex.config.ts`:
+    ```bash
+    npm install @bazileros/payfast
+    pnpm add @bazileros/payfast
+    bun add @bazileros/payfast
+    ```
+  </Step>
+  <Step>
+    Register the component in your Convex backend
 
-```ts
-import { defineApp } from "convex/server";
-import payfast from "@bazileros/payfast/convex.config";
+    ```ts title="convex/convex.config.ts"
+    import { defineApp } from "convex/server";
+    import payfast from "@bazileros/payfast/convex.config";
 
-const app = defineApp();
-app.use(payfast);
-export default app;
-```
+    const app = defineApp();
+    app.use(payfast);
+    export default app;
+    ```
+  </Step>
+  <Step>
+    Set environment variables via Convex CLI or dashboard
 
-Set environment variables and mount the ITN webhook. See the [Installation](/docs/payfast/installation) guide.
+    ```bash
+    npx convex env set PAYFAST_MERCHANT_ID your_merchant_id
+    npx convex env set PAYFAST_MERCHANT_KEY your_merchant_key
+    npx convex env set PAYFAST_PASSPHRASE your_passphrase
+    npx convex env set PAYFAST_SANDBOX true
+    ```
+  </Step>
+  <Step>
+    See the [Installation guide](/docs/payfast/installation) for the ITN webhook setup and full walkthrough.
+  </Step>
+</Steps>

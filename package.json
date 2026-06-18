@@ -15,18 +15,21 @@
       "react-dom": "^19.2.6",
       "convex": "^1.33.1",
       "@types/react": "^19.2.15",
-      "@types/react-dom": "^19.2.3"
+      "@types/react-dom": "^19.2.3",
+      "alchemy": "^0.91.2"
     }
   },
   "type": "module",
   "scripts": {
-	"bootstrap": "cd packages/payfast && bun run build:codegen && cd ../.. && turbo -F @payfastt/backend dev:setup",
-		"dev": "turbo dev",
-		"build": "turbo build",
+    "bootstrap": "cd packages/payfast && bun run build:codegen && cd ../.. && turbo -F @payfastt/backend dev:setup",
+    "dev": "turbo dev",
+    "build": "turbo build",
     "check-types": "turbo check-types",
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F @payfastt/backend dev",
     "dev:setup": "turbo -F @payfastt/backend dev:setup",
+    "deploy": "turbo -F @payfastt/infra deploy",
+    "destroy": "turbo -F @payfastt/infra destroy",
     "check": "biome check --write ."
   },
   "dependencies": {

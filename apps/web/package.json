@@ -11,6 +11,7 @@
     "check-types": "vite build && tsc --noEmit"
   },
   "dependencies": {
+    "@bazileros/payfast": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@payfastt/backend": "workspace:*",
     "@payfastt/env": "workspace:*",
