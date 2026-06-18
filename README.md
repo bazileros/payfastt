@@ -25,8 +25,8 @@
   <a href="https://www.npmjs.com/package/@bazileros/payfast">
     <img src="https://img.shields.io/npm/v/@bazileros/payfast?style=flat-square&logo=npm&label=package" alt="npm">
   </a>
-  <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/bazileros/payfastt?style=flat-square" alt="license">
+  <a href="https://www.npmjs.com/package/@bazileros/payfast">
+    <img src="https://img.shields.io/npm/l/@bazileros/payfast?style=flat-square" alt="license">
   </a>
   <a href="https://www.typescriptlang.org">
     <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
