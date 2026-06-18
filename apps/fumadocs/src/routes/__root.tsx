@@ -32,7 +32,7 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body className="flex flex-col min-h-screen">
-        <RootProvider search={{ SearchDialog }}>
+        <RootProvider search={{ SearchDialog }} theme={{ defaultTheme: "dark", enableSystem: false }}>
           <Outlet />
         </RootProvider>
         <Scripts />

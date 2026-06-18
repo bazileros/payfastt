@@ -1,92 +1,169 @@
-# payfastt
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/payfastt-%23000000?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMjAgM2wxNyAxMGwtMTcgMTAtMTctMTB6TTMgMjBsMTcgMTAgMTctMTB6Ii8+PC9zdmc+">
+    <img alt="payfastt" src="https://img.shields.io/badge/payfastt-%23000000?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48cGF0aCBmaWxsPSIjMDAwIiBkPSJNMjAgM2wxNyAxMGwtMTcgMTAtMTctMTB6TTMgMjBsMTcgMTAgMTctMTB6Ii8+PC9zdmc+" width="200">
+  </picture>
+</p>
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Router, Convex, and more.
+<h1 align="center">payfastt</h1>
+
+<p align="center">
+  <strong>PayFast payments for Convex apps</strong>
+</p>
+
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#why">Why</a> ·
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#docs">Docs</a> ·
+  <a href="#project-structure">Structure</a>
+</p>
+
+<br>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@bazileros/payfast">
+    <img src="https://img.shields.io/npm/v/@bazileros/payfast?style=flat-square&logo=npm&label=package" alt="npm">
+  </a>
+  <a href="https://www.npmjs.com/package/@bazileros/payfast">
+    <img src="https://img.shields.io/npm/l/@bazileros/payfast?style=flat-square" alt="license">
+  </a>
+  <a href="https://www.typescriptlang.org">
+    <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+  </a>
+  <a href="https://turbo.build/repo">
+    <img src="https://img.shields.io/badge/Turborepo-EF4444?style=flat-square&logo=turborepo&logoColor=white" alt="Turborepo">
+  </a>
+  <a href="https://convex.dev">
+    <img src="https://img.shields.io/badge/Convex-0D1821?style=flat-square&logo=convex&logoColor=white" alt="Convex">
+  </a>
+  <br>
+  <a href="https://bun.sh">
+    <img src="https://img.shields.io/badge/Bun-000?style=flat-square&logo=bun&logoColor=white" alt="Bun">
+  </a>
+  <a href="https://biomejs.dev">
+    <img src="https://img.shields.io/badge/Biome-60A5FA?style=flat-square&logo=biome&logoColor=white" alt="Biome">
+  </a>
+  <a href="https://payfastt-docs-zalisile.surestrat.workers.dev">
+    <img src="https://img.shields.io/badge/docs-fumadocs-8B5CF6?style=flat-square" alt="docs">
+  </a>
+</p>
+
+---
 
 ## Features
 
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Router** - File-based routing with full type safety
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Convex** - Reactive backend-as-a-service platform
-- **Biome** - Linting and formatting
-- **Turborepo** - Optimized monorepo build system
+**@bazileros/payfast** is a [Convex](https://convex.dev) component that integrates the [PayFast](https://www.payfast.co.za) payment gateway into your Convex application. Drop it in with `app.use(payfast)` and start accepting payments.
 
-## Getting Started
+- **One-time payments** via PayFast Custom Integration (signed form redirect — PCI-compliant)
+- **Recurring billing** — create, pause, unpause, cancel, and update subscriptions
+- **Tokenized charges** — ad-hoc charges against existing subscription tokens
+- **Refunds** — full and partial via PayFast REST API
+- **ITN webhook** — echo-back-validated Instant Transaction Notification processing with typed event handlers
+- **React hooks** — `usePayfastCheckout`, `useTransactions`, `useSubscriptions`, and more
+- **Sandbox mode** — toggle via constructor option; no env var gymnastics
+- **Type-safe** — full TypeScript types for requests, responses, and webhook events
 
-First, install the dependencies:
+## Why
 
-```bash
-bun install
-```
+I built this because there wasn't a turnkey PayFast integration for Convex. The existing PayFast SDKs are Node-only or PHP, and wiring up signed forms, REST API calls, and ITN validation yourself is tedious and error-prone.
 
-## Convex Setup
+This component gives you:
 
-This project uses Convex as a backend. You'll need to set up Convex before running the app:
+- **A single dependency** — `npm install @bazileros/payfast`, register the component, mount the webhook
+- **Typesafe env vars** — `ctx.env.PAYFAST_MERCHANT_ID` at deploy time, not `process.env.PAYFAST_MERCHANT_ID` silently missing at runtime
+- **Works on Convex's edge runtime** — no Node.js APIs, no `crypto` polyfills
+- **React hooks included** — no boilerplate for checkout forms, transaction lists, or subscription management
 
-```bash
-bun run dev:setup
-```
-
-Follow the prompts to create a new Convex project and connect it to your application.
-
-Copy environment variables from `packages/backend/.env.local` to `apps/*/.env`.
-
-Then, run the development server:
+## Quick Start
 
 ```bash
-bun run dev
+npm install @bazileros/payfast
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser to see the web application.
-Your app will connect to the Convex cloud backend automatically.
+### 1. Register the component
 
-## UI Customization
+```ts
+// convex/convex.config.ts
+import { defineApp } from "convex/server";
+import payfast from "@bazileros/payfast/convex.config";
 
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
-
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
-
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
-
-```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
+const app = defineApp();
+app.use(payfast, {
+  env: {
+    PAYFAST_MERCHANT_ID: { defaultValue: "your-id" },
+    PAYFAST_MERCHANT_KEY: { defaultValue: "your-key" },
+    PAYFAST_PASSPHRASE: { defaultValue: "your-passphrase" },
+    PAYFAST_SANDBOX: { defaultValue: "true" },
+  },
+});
+export default app;
 ```
 
-Import shared components like this:
+### 2. Mount the ITN webhook
+
+```ts
+// convex/http.ts
+import { httpRouter } from "convex/server";
+import { registerRoutes } from "@bazileros/payfast/http";
+import { components } from "./_generated/api";
+
+const http = httpRouter();
+registerRoutes(http, components.payfast);
+export default http;
+```
+
+### 3. Use it
 
 ```tsx
-import { Button } from "@payfastt/ui/components/button";
+import { usePayfastCheckout } from "@bazileros/payfast/react";
+import { components } from "../convex/_generated/api";
+
+function Donate() {
+  const { submit } = usePayfastCheckout(components.payfast, {
+    amount: 100,
+    itemName: "Donation",
+  });
+  return <button onClick={submit}>Donate R100</button>;
+}
 ```
 
-### Add app-specific blocks
-
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
-
-## Git Hooks and Formatting
-
-- Run checks: `bun run check`
+See the full [documentation →](https://payfastt-docs-zalisile.surestrat.workers.dev)
 
 ## Project Structure
 
 ```
 payfastt/
-├── apps/
-│   ├── web/         # Frontend application (React + TanStack Router)
 ├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── backend/     # Convex backend functions and schema
+│   ├── payfast/          # @bazileros/payfast — the Convex component
+│   │   ├── src/
+│   │   │   ├── client/   # Payfast class + registerRoutes helper
+│   │   │   ├── component/# Convex component functions (queries, mutations, actions, HTTP)
+│   │   │   └── react/    # React hooks
+│   │   └── README.md
+│   ├── backend/          # Example Convex backend using the component
+│   ├── ui/               # Shared shadcn/ui primitives
+│   └── infra/            # Deployment (Cloudflare Workers via Alchemy)
+├── apps/
+│   ├── web/              # Example TanStack Router SPA
+│   └── fumadocs/         # Documentation site
+└── .github/
+    └── workflows/        # CI/CD: test, publish, deploy
 ```
 
-## Available Scripts
+## Scripts
 
-- `bun run dev`: Start all applications in development mode
-- `bun run build`: Build all applications
-- `bun run dev:web`: Start only the web application
-- `bun run dev:setup`: Setup and configure your Convex project
-- `bun run check-types`: Check TypeScript types across all apps
-- `bun run check`: Run Biome formatting and linting
+| Command | Description |
+|---------|-------------|
+| `bun run dev` | Start all apps in development mode |
+| `bun run build` | Build all packages and apps |
+| `bun run bootstrap` | First-time setup (codegen + build) |
+| `bun run check` | Biome lint + format check |
+
+## Agent / AI Support
+
+A `SKILL.md` ships with the npm package for AI agent discoverability. Compatible with Claude Code, Cursor, opencode, Cline, Windsurf, and 30+ other agents via [skills.sh](https://skills.sh).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
