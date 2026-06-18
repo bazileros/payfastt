@@ -1,0 +1,3 @@
+{
+  "extends": "@payfastt/config/tsconfig.base.json"
+}
