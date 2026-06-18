@@ -1,0 +1,19 @@
+{
+	"extends": "@payfastt/config/tsconfig.base.json",
+	"compilerOptions": {
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": ["ES2023", "dom", "DOM.Iterable"],
+		"jsx": "react-jsx",
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true,
+		"composite": true,
+		"rootDir": "./src",
+		"outDir": "./dist",
+		"types": ["node"]
+	},
+	"include": ["src/**/*"],
+	"exclude": ["src/**/*.test.*", "./src/test.ts"]
+}

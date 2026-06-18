@@ -1,0 +1,36 @@
+---
+title: @bazileros/payfast
+description: PayFast payment gateway Convex component
+icon: BankNote
+---
+
+`@bazileros/payfast` is a private Convex component that integrates the [PayFast](https://www.payfast.co.za) South African payment gateway into your Convex app. It provides one-time payments, recurring billing, tokenized charges, refunds, and ITN webhook processing.
+
+## Features
+
+- **One-time payments** — generate signed PayFast checkout forms that redirect users to PayFast
+- **Recurring billing** — create and manage subscriptions (pause, unpause, cancel, update)
+- **Tokenized charges** — charge against an existing subscription token
+- **ITN webhook** — automatic processing with echo-back validation and database persistence
+- **React hooks** — `usePayfastCheckout`, `useTransactions`, `useSubscriptions`, `useSubscriptionActions`
+- **Server-side client** — `Payfast` class with typed wrapper methods and optional `getUserInfo` auto-resolution
+- **ITN event handlers** — dispatch custom logic on payment complete, cancelled, refunded, or subscription events
+
+## Quick start
+
+```bash
+pnpm add @bazileros/payfast
+```
+
+Register the component in your `convex.config.ts`:
+
+```ts
+import { defineApp } from "convex/server";
+import payfast from "@bazileros/payfast/convex.config";
+
+const app = defineApp();
+app.use(payfast);
+export default app;
+```
+
+Set environment variables and mount the ITN webhook. See the [Installation](/docs/payfast/installation) guide.

@@ -9,6 +9,7 @@
     "dev:setup": "convex dev --configure --until-success"
   },
   "dependencies": {
+    "@bazileros/payfast": "workspace:*",
     "convex": "catalog:",
     "dotenv": "catalog:",
     "zod": "catalog:"

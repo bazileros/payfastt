@@ -20,8 +20,9 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
+	"bootstrap": "cd packages/payfast && bun run build:codegen && cd ../.. && turbo -F @payfastt/backend dev:setup",
+		"dev": "turbo dev",
+		"build": "turbo build",
     "check-types": "turbo check-types",
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F @payfastt/backend dev",

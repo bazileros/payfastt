@@ -1,0 +1,114 @@
+---
+title: One-time Payments
+description: Accept payments with PayFast form redirect
+icon: CreditCard
+---
+
+PayFast's Custom Integration redirects the buyer to PayFast's site, so you never handle card details. The component generates a signed HTML form with all required fields.
+
+## React: `usePayfastCheckout`
+
+The hook generates a checkout form and manages redirect state.
+
+```tsx
+import { usePayfastCheckout } from "@bazileros/payfast/react";
+import { components } from "../convex/_generated/api";
+
+function DonateButton() {
+  const {
+    generateCheckout,
+    formActionUrl,
+    formFields,
+    loading,
+    error,
+  } = usePayfastCheckout(components.payfast, {
+    amount: 100,
+    itemName: "Donation",
+    returnUrl: window.location.origin + "/thanks",
+    cancelUrl: window.location.origin + "/donate",
+  });
+
+  return (
+    <div>
+      <button onClick={generateCheckout} disabled={loading}>
+        {loading ? "Generating..." : "Donate R100"}
+      </button>
+      {formActionUrl && formFields && (
+        <form
+          action={formActionUrl}
+          method="POST"
+          ref={(ref) => ref?.submit()}
+          style={{ display: "none" }}
+        >
+          {Object.entries(formFields).map(([k, v]) => (
+            <input key={k} type="hidden" name={k} value={v} />
+          ))}
+        </form>
+      )}
+      {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+```
+
+### Returns
+
+| Field | Description |
+|---|---|
+| `generateCheckout` | Call this to generate the signed form |
+| `formActionUrl` | PayFast endpoint URL (set after generation) |
+| `formFields` | Hidden form fields including signature (set after generation) |
+| `loading` | True while the mutation is in flight |
+| `error` | Error message if generation failed |
+
+## Server-side: `Payfast.createCheckoutSession`
+
+```ts
+import { Payfast } from "@bazileros/payfast";
+import { components } from "./_generated/api";
+
+const pf = new Payfast(components.payfast, { sandbox: true });
+
+export const createCheckout = action({
+  handler: async (ctx) => {
+    const session = await pf.createCheckoutSession(ctx, {
+      amount: 100,
+      itemName: "Donation",
+      returnUrl: "https://example.com/thanks",
+    });
+    // session.formActionUrl, session.formFields
+  },
+});
+```
+
+## Subscription checkout
+
+Pass subscription options to create a recurring payment:
+
+```ts
+usePayfastCheckout(components.payfast, {
+  amount: 50,
+  itemName: "Monthly Membership",
+  subscriptionType: 1,         // 1 = fixed, 2 = recurring ad-hoc
+  recurringAmount: 50,
+  frequency: 1,                // every 1 month
+  cycles: 12,                  // 12 billing cycles
+});
+```
+
+## Checkout parameters
+
+All parameters from the [PayFast Custom Integration docs](https://developers.payfast.co.za/docs#custom) are supported. Key ones:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `amount` | `number` | Payment amount (required) |
+| `itemName` | `string` | Item description (required) |
+| `returnUrl` | `string` | Redirect after success |
+| `cancelUrl` | `string` | Redirect after cancel |
+| `notifyUrl` | `string` | Override ITN URL for this payment |
+| `mPaymentId` | `string` | Your internal payment ID |
+| `subscriptionType` | `1 \| 2` | Enable recurring billing |
+| `recurringAmount` | `number` | Recurring amount (if different) |
+| `frequency` | `number` | Billing frequency in months |
+| `cycles` | `number` | Number of billing cycles |

@@ -1,0 +1,78 @@
+---
+title: Installation
+description: Set up @bazileros/payfast in your Convex project
+icon: Wrench
+---
+
+## 1. Add the dependency
+
+```bash
+pnpm add @bazileros/payfast
+```
+
+## 2. Register the component
+
+In your backend's `convex.config.ts`:
+
+```ts
+import { defineApp } from "convex/server";
+import payfast from "@bazileros/payfast/convex.config";
+
+const app = defineApp();
+app.use(payfast);
+export default app;
+```
+
+## 3. Set environment variables
+
+The component requires four environment variables declared in `convex.config.ts`:
+
+| Variable | Description |
+|---|---|
+| `PAYFAST_MERCHANT_ID` | Your PayFast merchant ID |
+| `PAYFAST_MERCHANT_KEY` | Your PayFast merchant key |
+| `PAYFAST_PASSPHRASE` | Your PayFast passphrase |
+| `PAYFAST_SANDBOX` | Set to `"true"` for sandbox mode, any other value for production |
+
+Set them locally:
+
+```bash
+npx convex env set PAYFAST_MERCHANT_ID your_merchant_id
+npx convex env set PAYFAST_MERCHANT_KEY your_merchant_key
+npx convex env set PAYFAST_PASSPHRASE your_passphrase
+npx convex env set PAYFAST_SANDBOX true
+```
+
+## 4. Mount the ITN webhook
+
+In your backend's `convex/http.ts`:
+
+```ts
+import { httpRouter } from "convex/server";
+import { registerRoutes } from "@bazileros/payfast";
+import { components } from "./_generated/api.js";
+
+const http = httpRouter();
+registerRoutes(http, components.payfast);
+export default http;
+```
+
+## 5. Set PayFast notify URL
+
+In your PayFast dashboard, set the ITN (Instant Transaction Notification) URL to:
+
+```
+https://YOUR_CONVEX_DOMAIN.convex.site/payfast/itn
+```
+
+Or, if you configured a custom `itnPath`, use that path instead.
+
+## Configuration
+
+### Custom ITN path
+
+```ts
+registerRoutes(http, components.payfast, {
+  itnPath: "/webhooks/payfast",
+});
+```

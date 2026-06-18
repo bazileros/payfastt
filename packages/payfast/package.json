@@ -1,0 +1,71 @@
+{
+	"name": "@bazileros/payfast",
+	"version": "0.1.0",
+	"type": "module",
+	"description": "PayFast payment gateway Convex component — one-time payments, subscriptions, tokenized charges, refunds, and ITN webhooks",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/bazileros/payfastt",
+		"directory": "packages/payfast"
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"build:codegen": "convex codegen --component-dir ./src/component && bun run build",
+		"check-types": "tsc --noEmit",
+		"dev": "bun run build:codegen",
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"exports": {
+		"./package.json": "./package.json",
+		".": {
+			"types": "./dist/client/index.d.ts",
+			"default": "./dist/client/index.js"
+		},
+		"./react": {
+			"types": "./dist/react/index.d.ts",
+			"default": "./dist/react/index.js"
+		},
+		"./test": "./src/test.ts",
+		"./convex.config": {
+			"types": "./dist/component/convex.config.d.ts",
+			"default": "./dist/component/convex.config.js"
+		},
+		"./http": {
+			"types": "./dist/component/http.d.ts",
+			"default": "./dist/component/http.js"
+		}
+	},
+	"files": [
+		"dist",
+		"src/component/_generated",
+		"src/client",
+		"src/react",
+		"src/test.ts",
+		"SKILL.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"peerDependencies": {
+		"convex": "^1.36.1",
+		"react": "^18.3.1 || ^19.0.0"
+	},
+	"dependencies": {
+		"convex": "^1.36.1"
+	},
+	"devDependencies": {
+		"@edge-runtime/vm": "^5.0.0",
+		"@payfastt/config": "workspace:*",
+		"@types/node": "^25.9.3",
+		"@types/react": "^19.2.15",
+		"@types/react-dom": "^19.2.3",
+		"convex": "^1.36.1",
+		"convex-test": "^0.0.53",
+		"react": "^19.2.6",
+		"react-dom": "^19.2.6",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.4"
+	}
+}

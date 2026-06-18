@@ -22,11 +22,12 @@
       "!bts.jsonc",
       "!**/.expo",
       "!**/.wrangler",
-      "!**/.alchemy",
-      "!**/.svelte-kit",
-      "!**/wrangler.jsonc",
-      "!**/.source",
-      "!**/convex/_generated"
+		"!**/.alchemy",
+		"!**/.svelte-kit",
+		"!**/wrangler.jsonc",
+		"!**/.source",
+		"!**/convex/_generated",
+		"!**/_generated"
     ]
   },
   "formatter": {

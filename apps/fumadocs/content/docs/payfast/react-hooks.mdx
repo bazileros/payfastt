@@ -1,0 +1,112 @@
+---
+title: React Hooks
+description: Reference for all React hooks
+icon: Code
+---
+
+## `usePayfastCheckout(component, opts)`
+
+Generates a signed PayFast checkout form.
+
+```ts
+usePayfastCheckout(
+  component: ComponentApi,
+  opts: {
+    amount: number;
+    itemName: string;
+    returnUrl?: string;
+    cancelUrl?: string;
+    notifyUrl?: string;
+    itemDescription?: string;
+    mPaymentId?: string;
+    emailConfirmation?: boolean;
+    confirmationAddress?: string;
+    customInt1-5?: number;
+    customStr1-5?: string;
+    subscriptionType?: 1 | 2;
+    billingDate?: string;
+    recurringAmount?: number;
+    frequency?: number;
+    cycles?: number;
+    token?: string;
+  },
+): {
+  generateCheckout: () => Promise<void>;
+  formActionUrl: string | null;
+  formFields: Record<string, string> | null;
+  loading: boolean;
+  error: string | null;
+}
+```
+
+## `useTransactions(component, filters?)`
+
+Reactive list of transactions.
+
+```ts
+useTransactions(
+  component: ComponentApi,
+  filters?: {
+    userId?: string;
+    status?: TransactionStatus;
+    limit?: number;
+  },
+): Doc<"transactions">[] | undefined
+```
+
+## `useTransaction(component, transactionId)`
+
+Reactive single transaction lookup.
+
+```ts
+useTransaction(
+  component: ComponentApi,
+  transactionId: Id<"transactions">,
+): Doc<"transactions"> | null | undefined
+```
+
+## `useSubscriptions(component, filters?)`
+
+Reactive list of subscriptions.
+
+```ts
+useSubscriptions(
+  component: ComponentApi,
+  filters?: {
+    userId?: string;
+    status?: SubscriptionStatus;
+  },
+): Doc<"subscriptions">[] | undefined
+```
+
+## `useSubscription(component, token)`
+
+Reactive single subscription lookup by token.
+
+```ts
+useSubscription(
+  component: ComponentApi,
+  token: string,
+): Doc<"subscriptions"> | null | undefined
+```
+
+## `useSubscriptionActions(component, token)`
+
+Bound mutation callbacks for subscription management.
+
+```ts
+useSubscriptionActions(
+  component: ComponentApi,
+  token: string,
+): {
+  pause: () => Promise<void>;
+  unpause: () => Promise<void>;
+  cancel: () => Promise<void>;
+  update: (args: {
+    amount?: number;
+    frequency?: number;
+    cycles?: number;
+    runDate?: string;
+  }) => Promise<void>;
+}
+```
