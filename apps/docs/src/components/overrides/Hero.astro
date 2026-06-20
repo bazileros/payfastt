@@ -1,13 +1,15 @@
 ---
 interface Props {
-  badge?: {
-    text: string;
-    href?: string;
-  };
+	badge?: {
+		text: string;
+		href?: string;
+	};
 }
 
 const { hero } = Astro.locals.starlightRoute.entry.data;
+// biome-ignore lint/correctness/noUnusedVariables: used in template below frontmatter
 const { tagline, actions } = hero || {};
+// biome-ignore lint/correctness/noUnusedVariables: used in template below frontmatter
 const { badge } = Astro.props;
 ---
 

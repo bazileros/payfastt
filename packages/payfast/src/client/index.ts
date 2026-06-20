@@ -289,10 +289,10 @@ export class Payfast {
 		},
 	) {
 		const userId = await this.resolveUserId(ctx, args.userId);
-		return await ctx.runAction(
-			this.component.lib.chargeSubscriptionAdhoc,
-			{ ...args, userId },
-		);
+		return await ctx.runAction(this.component.lib.chargeSubscriptionAdhoc, {
+			...args,
+			userId,
+		});
 	}
 
 	async refund(
@@ -302,10 +302,7 @@ export class Payfast {
 		return await ctx.runAction(this.component.lib.refundTransaction, args);
 	}
 
-	async queryTransactions(
-		ctx: ActionCtx,
-		args?: { offset?: number },
-	) {
+	async queryTransactions(ctx: ActionCtx, args?: { offset?: number }) {
 		return await ctx.runAction(
 			this.component.lib.queryTransactions,
 			args ?? {},

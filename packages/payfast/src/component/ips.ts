@@ -12,9 +12,7 @@ export const PAYFAST_ITN_CIDRS: string[] = [
 	"102.216.36.128/28",
 ];
 
-export const PAYFAST_ITN_IPS: string[] = [
-	"144.126.193.139",
-];
+export const PAYFAST_ITN_IPS: string[] = ["144.126.193.139"];
 
 function ipToInt(ip: string): number {
 	const parts = ip.split(".");

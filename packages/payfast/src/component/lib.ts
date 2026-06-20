@@ -9,9 +9,9 @@ import {
 	mutation,
 	query,
 } from "./_generated/server.js";
+import { callPayfastApi } from "./api.js";
 import { md5 } from "./md5.js";
 import { asTransactionStatus } from "./statuses.js";
-import { callPayfastApi } from "./api.js";
 
 export const generateCheckoutForm = mutation({
 	args: {
@@ -50,8 +50,7 @@ export const generateCheckoutForm = mutation({
 			PAYFAST_MERCHANT_KEY,
 			PAYFAST_PASSPHRASE,
 			PAYFAST_SANDBOX,
-			// biome-ignore lint/suspicious/noExplicitAny: handler ctx type lacks env
-		} = (ctx as any).env as Env;
+		} = ctx.env as Env;
 		const host =
 			PAYFAST_SANDBOX === "true"
 				? "sandbox.payfast.co.za"
@@ -361,8 +360,7 @@ export const updateSubscription = action({
 	},
 	handler: async (ctx, args) => {
 		const bodyFields: Record<string, string> = {};
-		if (args.amount !== undefined)
-			bodyFields.amount = args.amount.toFixed(2);
+		if (args.amount !== undefined) bodyFields.amount = args.amount.toFixed(2);
 		if (args.cycles !== undefined) bodyFields.cycles = String(args.cycles);
 		if (args.frequency !== undefined)
 			bodyFields.frequency = String(args.frequency);
@@ -539,9 +537,8 @@ export const generateOnsitePaymentIdentifier = action({
 		setup: v.optional(v.string()),
 		userId: v.optional(v.string()),
 	},
-	// biome-ignore lint/suspicious/noExplicitAny: action ctx lacks env
 	handler: async (
-		ctx: any,
+		ctx,
 		args: {
 			amount: number;
 			itemName: string;
@@ -579,9 +576,7 @@ export const generateOnsitePaymentIdentifier = action({
 		} = ctx.env as Env;
 
 		if (PAYFAST_SANDBOX === "true") {
-			throw new Error(
-				"Onsite payments are not available in sandbox mode",
-			);
+			throw new Error("Onsite payments are not available in sandbox mode");
 		}
 
 		const host = "www.payfast.co.za";
@@ -594,8 +589,7 @@ export const generateOnsitePaymentIdentifier = action({
 			item_name: args.itemName,
 		};
 
-		if (args.itemDescription)
-			fields.item_description = args.itemDescription;
+		if (args.itemDescription) fields.item_description = args.itemDescription;
 		if (args.mPaymentId) fields.m_payment_id = args.mPaymentId;
 		if (args.returnUrl) fields.return_url = args.returnUrl;
 		if (args.cancelUrl) fields.cancel_url = args.cancelUrl;
@@ -650,9 +644,7 @@ export const generateOnsitePaymentIdentifier = action({
 		}
 
 		if (!paymentIdentifier) {
-			throw new Error(
-				`No payment identifier returned: ${responseText}`,
-			);
+			throw new Error(`No payment identifier returned: ${responseText}`);
 		}
 
 		const transactionId = (await ctx.runMutation(

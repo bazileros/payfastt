@@ -10,21 +10,21 @@ const app = await alchemy("payfastt");
 const env = alchemy.env;
 
 if (!env.VITE_CONVEX_URL) {
-  throw new Error(
-    "VITE_CONVEX_URL is not set. Please set it in your .env file or in the environment variables.",
-  );
+	throw new Error(
+		"VITE_CONVEX_URL is not set. Please set it in your .env file or in the environment variables.",
+	);
 }
 export const web = await Vite("web", {
-  cwd: "../../apps/web",
-  bindings: {
-    VITE_CONVEX_URL: env.VITE_CONVEX_URL,
-  },
+	cwd: "../../apps/web",
+	bindings: {
+		VITE_CONVEX_URL: env.VITE_CONVEX_URL,
+	},
 });
 
 export const docs = await Astro("docs", {
-  cwd: "../../apps/docs",
-  entrypoint: "dist/server/entry.mjs",
-  assets: "dist/client",
+	cwd: "../../apps/docs",
+	entrypoint: "dist/server/entry.mjs",
+	assets: "dist/client",
 });
 
 console.log(`Web   -> ${web.url}`);

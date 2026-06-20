@@ -1,184 +1,192 @@
 :root,
 ::backdrop {
-  --sl-font: "Inter", var(--sl-font-system);
-  --sl-font-mono: "JetBrains Mono", var(--sl-font-system-mono);
+	--sl-font: "Inter", var(--sl-font-system);
+	--sl-font-mono: "JetBrains Mono", var(--sl-font-system-mono);
 
-  --sl-color-white: #e6e6e7;
-  --sl-color-gray-1: #e6e6e7;
-  --sl-color-gray-2: #abb2bf;
-  --sl-color-gray-3: #6c7480;
-  --sl-color-gray-4: #4b5260;
-  --sl-color-gray-5: #363c48;
-  --sl-color-gray-6: #262c36;
-  --sl-color-black: #1e2229;
+	--sl-color-white: #e6e6e7;
+	--sl-color-gray-1: #e6e6e7;
+	--sl-color-gray-2: #abb2bf;
+	--sl-color-gray-3: #6c7480;
+	--sl-color-gray-4: #4b5260;
+	--sl-color-gray-5: #363c48;
+	--sl-color-gray-6: #262c36;
+	--sl-color-black: #1e2229;
 
-  --sl-hue-orange: 29;
-  --sl-color-orange-low: #4d3520;
-  --sl-color-orange: #d19a66;
-  --sl-color-orange-high: #e8c49a;
-  --sl-hue-green: 110;
-  --sl-color-green-low: #2a3a26;
-  --sl-color-green: #98c379;
-  --sl-color-green-high: #c3e0a5;
-  --sl-hue-blue: 213;
-  --sl-color-blue-low: #1a3853;
-  --sl-color-blue: #61afef;
-  --sl-color-blue-high: #a8d4f7;
-  --sl-hue-purple: 275;
-  --sl-color-purple-low: #3a2a4a;
-  --sl-color-purple: #c678dd;
-  --sl-color-purple-high: #dcb0eb;
-  --sl-hue-red: 348;
-  --sl-color-red-low: #4a2028;
-  --sl-color-red: #e06c75;
-  --sl-color-red-high: #eba0a5;
+	--sl-hue-orange: 29;
+	--sl-color-orange-low: #4d3520;
+	--sl-color-orange: #d19a66;
+	--sl-color-orange-high: #e8c49a;
+	--sl-hue-green: 110;
+	--sl-color-green-low: #2a3a26;
+	--sl-color-green: #98c379;
+	--sl-color-green-high: #c3e0a5;
+	--sl-hue-blue: 213;
+	--sl-color-blue-low: #1a3853;
+	--sl-color-blue: #61afef;
+	--sl-color-blue-high: #a8d4f7;
+	--sl-hue-purple: 275;
+	--sl-color-purple-low: #3a2a4a;
+	--sl-color-purple: #c678dd;
+	--sl-color-purple-high: #dcb0eb;
+	--sl-hue-red: 348;
+	--sl-color-red-low: #4a2028;
+	--sl-color-red: #e06c75;
+	--sl-color-red-high: #eba0a5;
 
-  --sl-color-accent-low: #1a3853;
-  --sl-color-accent: #61afef;
-  --sl-color-accent-high: #7ab8f0;
+	--sl-color-accent-low: #1a3853;
+	--sl-color-accent: #61afef;
+	--sl-color-accent-high: #7ab8f0;
 
-  --sl-color-text: var(--sl-color-gray-2);
-  --sl-color-text-accent: var(--sl-color-accent-high);
-  --sl-color-text-invert: var(--sl-color-accent-low);
-  --sl-color-bg: var(--sl-color-black);
-  --sl-color-bg-nav: var(--sl-color-gray-6);
-  --sl-color-bg-sidebar: var(--sl-color-gray-6);
-  --sl-color-bg-inline-code: var(--sl-color-gray-5);
-  --sl-color-bg-accent: var(--sl-color-accent-high);
-  --sl-color-hairline-light: var(--sl-color-gray-5);
-  --sl-color-hairline: var(--sl-color-gray-6);
-  --sl-color-hairline-shade: var(--sl-color-black);
-  --sl-color-backdrop-overlay: rgba(30, 34, 41, 0.66);
+	--sl-color-text: var(--sl-color-gray-2);
+	--sl-color-text-accent: var(--sl-color-accent-high);
+	--sl-color-text-invert: var(--sl-color-accent-low);
+	--sl-color-bg: var(--sl-color-black);
+	--sl-color-bg-nav: var(--sl-color-gray-6);
+	--sl-color-bg-sidebar: var(--sl-color-gray-6);
+	--sl-color-bg-inline-code: var(--sl-color-gray-5);
+	--sl-color-bg-accent: var(--sl-color-accent-high);
+	--sl-color-hairline-light: var(--sl-color-gray-5);
+	--sl-color-hairline: var(--sl-color-gray-6);
+	--sl-color-hairline-shade: var(--sl-color-black);
+	--sl-color-backdrop-overlay: rgba(30, 34, 41, 0.66);
 
-  --sl-shadow-sm: 0px 1px 1px rgba(0, 0, 0, 0.12), 0px 2px 1px rgba(0, 0, 0, 0.24);
-  --sl-shadow-md: 0px 8px 4px rgba(0, 0, 0, 0.08), 0px 5px 2px rgba(0, 0, 0, 0.08),
-    0px 3px 2px rgba(0, 0, 0, 0.12), 0px 1px 1px rgba(0, 0, 0, 0.15);
-  --sl-shadow-lg: 0px 25px 7px rgba(0, 0, 0, 0.03), 0px 16px 6px rgba(0, 0, 0, 0.1),
-    0px 9px 5px rgba(30, 34, 41, 0.33), 0px 4px 4px rgba(0, 0, 0, 0.75),
-    0px 4px 2px rgba(0, 0, 0, 0.25);
+	--sl-shadow-sm:
+		0px 1px 1px rgba(0, 0, 0, 0.12), 0px 2px 1px rgba(0, 0, 0, 0.24);
+	--sl-shadow-md:
+		0px 8px 4px rgba(0, 0, 0, 0.08), 0px 5px 2px rgba(0, 0, 0, 0.08),
+		0px 3px 2px rgba(0, 0, 0, 0.12), 0px 1px 1px rgba(0, 0, 0, 0.15);
+	--sl-shadow-lg:
+		0px 25px 7px rgba(0, 0, 0, 0.03), 0px 16px 6px rgba(0, 0, 0, 0.1),
+		0px 9px 5px rgba(30, 34, 41, 0.33), 0px 4px 4px rgba(0, 0, 0, 0.75),
+		0px 4px 2px rgba(0, 0, 0, 0.25);
 }
 
 :root[data-theme="light"],
 [data-theme="light"] ::backdrop {
-  --sl-color-white: #1e2229;
-  --sl-color-gray-1: #1e2229;
-  --sl-color-gray-2: #494b4f;
-  --sl-color-gray-3: #7a7c80;
-  --sl-color-gray-4: #b0b1b4;
-  --sl-color-gray-5: #d6d7da;
-  --sl-color-gray-6: #eaeaec;
-  --sl-color-black: #fafafa;
+	--sl-color-white: #1e2229;
+	--sl-color-gray-1: #1e2229;
+	--sl-color-gray-2: #494b4f;
+	--sl-color-gray-3: #7a7c80;
+	--sl-color-gray-4: #b0b1b4;
+	--sl-color-gray-5: #d6d7da;
+	--sl-color-gray-6: #eaeaec;
+	--sl-color-black: #fafafa;
 
-  --sl-color-orange-high: #d19a66;
-  --sl-color-orange: #b0763a;
-  --sl-color-orange-low: #f0dcc5;
-  --sl-color-green-high: #50a14f;
-  --sl-color-green: #4a9c49;
-  --sl-color-green-low: #d6edce;
-  --sl-color-blue-high: #4078f2;
-  --sl-color-blue: #3a72ea;
-  --sl-color-blue-low: #d2dffb;
-  --sl-color-purple-high: #a626a4;
-  --sl-color-purple: #9a2498;
-  --sl-color-purple-low: #edd4e8;
-  --sl-color-red-high: #e45649;
-  --sl-color-red: #c9443a;
-  --sl-color-red-low: #f8cdc5;
+	--sl-color-orange-high: #d19a66;
+	--sl-color-orange: #b0763a;
+	--sl-color-orange-low: #f0dcc5;
+	--sl-color-green-high: #50a14f;
+	--sl-color-green: #4a9c49;
+	--sl-color-green-low: #d6edce;
+	--sl-color-blue-high: #4078f2;
+	--sl-color-blue: #3a72ea;
+	--sl-color-blue-low: #d2dffb;
+	--sl-color-purple-high: #a626a4;
+	--sl-color-purple: #9a2498;
+	--sl-color-purple-low: #edd4e8;
+	--sl-color-red-high: #e45649;
+	--sl-color-red: #c9443a;
+	--sl-color-red-low: #f8cdc5;
 
-  --sl-color-accent-high: #4078f2;
-  --sl-color-accent: #3a72ea;
-  --sl-color-accent-low: #d2dffb;
+	--sl-color-accent-high: #4078f2;
+	--sl-color-accent: #3a72ea;
+	--sl-color-accent-low: #d2dffb;
 
-  --sl-color-text: var(--sl-color-gray-2);
-  --sl-color-text-accent: var(--sl-color-accent);
-  --sl-color-text-invert: var(--sl-color-black);
-  --sl-color-bg: var(--sl-color-black);
-  --sl-color-bg-nav: var(--sl-color-gray-6);
-  --sl-color-bg-sidebar: var(--sl-color-bg);
-  --sl-color-bg-inline-code: var(--sl-color-gray-5);
-  --sl-color-bg-accent: var(--sl-color-accent);
-  --sl-color-hairline-light: var(--sl-color-gray-5);
-  --sl-color-hairline-shade: var(--sl-color-gray-5);
-  --sl-color-backdrop-overlay: rgba(245, 245, 245, 0.66);
+	--sl-color-text: var(--sl-color-gray-2);
+	--sl-color-text-accent: var(--sl-color-accent);
+	--sl-color-text-invert: var(--sl-color-black);
+	--sl-color-bg: var(--sl-color-black);
+	--sl-color-bg-nav: var(--sl-color-gray-6);
+	--sl-color-bg-sidebar: var(--sl-color-bg);
+	--sl-color-bg-inline-code: var(--sl-color-gray-5);
+	--sl-color-bg-accent: var(--sl-color-accent);
+	--sl-color-hairline-light: var(--sl-color-gray-5);
+	--sl-color-hairline-shade: var(--sl-color-gray-5);
+	--sl-color-backdrop-overlay: rgba(245, 245, 245, 0.66);
 
-  --sl-shadow-sm: 0px 1px 1px rgba(0, 0, 0, 0.04), 0px 2px 1px rgba(0, 0, 0, 0.04);
-  --sl-shadow-md: 0px 8px 4px rgba(0, 0, 0, 0.02), 0px 5px 2px rgba(0, 0, 0, 0.02),
-    0px 3px 2px rgba(0, 0, 0, 0.04), 0px 1px 1px rgba(0, 0, 0, 0.04);
-  --sl-shadow-lg: 0px 25px 7px rgba(0, 0, 0, 0.01), 0px 16px 6px rgba(0, 0, 0, 0.02),
-    0px 9px 5px rgba(30, 34, 41, 0.04), 0px 4px 4px rgba(0, 0, 0, 0.08),
-    0px 4px 2px rgba(0, 0, 0, 0.02);
+	--sl-shadow-sm:
+		0px 1px 1px rgba(0, 0, 0, 0.04), 0px 2px 1px rgba(0, 0, 0, 0.04);
+	--sl-shadow-md:
+		0px 8px 4px rgba(0, 0, 0, 0.02), 0px 5px 2px rgba(0, 0, 0, 0.02),
+		0px 3px 2px rgba(0, 0, 0, 0.04), 0px 1px 1px rgba(0, 0, 0, 0.04);
+	--sl-shadow-lg:
+		0px 25px 7px rgba(0, 0, 0, 0.01), 0px 16px 6px rgba(0, 0, 0, 0.02),
+		0px 9px 5px rgba(30, 34, 41, 0.04), 0px 4px 4px rgba(0, 0, 0, 0.08),
+		0px 4px 2px rgba(0, 0, 0, 0.02);
 }
 
 /* Bento card accent colors */
 :root,
 ::backdrop {
-  --bento-blue-bg: rgba(97, 175, 239, 0.06);
-  --bento-blue-icon: rgba(97, 175, 239, 0.15);
-  --bento-blue-border: rgba(97, 175, 239, 0.2);
-  --bento-green-bg: rgba(152, 195, 121, 0.06);
-  --bento-green-icon: rgba(152, 195, 121, 0.15);
-  --bento-green-border: rgba(152, 195, 121, 0.2);
-  --bento-purple-bg: rgba(198, 120, 221, 0.06);
-  --bento-purple-icon: rgba(198, 120, 221, 0.15);
-  --bento-purple-border: rgba(198, 120, 221, 0.2);
-  --bento-orange-bg: rgba(209, 154, 102, 0.06);
-  --bento-orange-icon: rgba(209, 154, 102, 0.15);
-  --bento-orange-border: rgba(209, 154, 102, 0.2);
-  --bento-red-bg: rgba(224, 108, 117, 0.06);
-  --bento-red-icon: rgba(224, 108, 117, 0.15);
-  --bento-red-border: rgba(224, 108, 117, 0.2);
+	--bento-blue-bg: rgba(97, 175, 239, 0.06);
+	--bento-blue-icon: rgba(97, 175, 239, 0.15);
+	--bento-blue-border: rgba(97, 175, 239, 0.2);
+	--bento-green-bg: rgba(152, 195, 121, 0.06);
+	--bento-green-icon: rgba(152, 195, 121, 0.15);
+	--bento-green-border: rgba(152, 195, 121, 0.2);
+	--bento-purple-bg: rgba(198, 120, 221, 0.06);
+	--bento-purple-icon: rgba(198, 120, 221, 0.15);
+	--bento-purple-border: rgba(198, 120, 221, 0.2);
+	--bento-orange-bg: rgba(209, 154, 102, 0.06);
+	--bento-orange-icon: rgba(209, 154, 102, 0.15);
+	--bento-orange-border: rgba(209, 154, 102, 0.2);
+	--bento-red-bg: rgba(224, 108, 117, 0.06);
+	--bento-red-icon: rgba(224, 108, 117, 0.15);
+	--bento-red-border: rgba(224, 108, 117, 0.2);
 }
 
 [data-theme="light"] {
-  --bento-blue-bg: rgba(64, 120, 242, 0.04);
-  --bento-blue-icon: rgba(64, 120, 242, 0.1);
-  --bento-blue-border: rgba(64, 120, 242, 0.15);
-  --bento-green-bg: rgba(74, 156, 73, 0.04);
-  --bento-green-icon: rgba(74, 156, 73, 0.1);
-  --bento-green-border: rgba(74, 156, 73, 0.15);
-  --bento-purple-bg: rgba(166, 38, 164, 0.04);
-  --bento-purple-icon: rgba(166, 38, 164, 0.1);
-  --bento-purple-border: rgba(166, 38, 164, 0.15);
-  --bento-orange-bg: rgba(176, 118, 58, 0.04);
-  --bento-orange-icon: rgba(176, 118, 58, 0.1);
-  --bento-orange-border: rgba(176, 118, 58, 0.15);
-  --bento-red-bg: rgba(201, 68, 58, 0.04);
-  --bento-red-icon: rgba(201, 68, 58, 0.1);
-  --bento-red-border: rgba(201, 68, 58, 0.15);
+	--bento-blue-bg: rgba(64, 120, 242, 0.04);
+	--bento-blue-icon: rgba(64, 120, 242, 0.1);
+	--bento-blue-border: rgba(64, 120, 242, 0.15);
+	--bento-green-bg: rgba(74, 156, 73, 0.04);
+	--bento-green-icon: rgba(74, 156, 73, 0.1);
+	--bento-green-border: rgba(74, 156, 73, 0.15);
+	--bento-purple-bg: rgba(166, 38, 164, 0.04);
+	--bento-purple-icon: rgba(166, 38, 164, 0.1);
+	--bento-purple-border: rgba(166, 38, 164, 0.15);
+	--bento-orange-bg: rgba(176, 118, 58, 0.04);
+	--bento-orange-icon: rgba(176, 118, 58, 0.1);
+	--bento-orange-border: rgba(176, 118, 58, 0.15);
+	--bento-red-bg: rgba(201, 68, 58, 0.04);
+	--bento-red-icon: rgba(201, 68, 58, 0.1);
+	--bento-red-border: rgba(201, 68, 58, 0.15);
 }
 
 .site-title a {
-  gap: 0.5rem;
+	gap: 0.5rem;
 }
 
 .site-title svg {
-  color: var(--sl-color-accent);
+	color: var(--sl-color-accent);
 }
 
 .card {
-  border-color: var(--sl-color-gray-5) !important;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+	border-color: var(--sl-color-gray-5);
+	transition:
+		border-color 0.2s ease,
+		box-shadow 0.2s ease;
 }
 
 .card:hover {
-  border-color: var(--sl-color-accent) !important;
-  box-shadow: 0 0 20px rgba(97, 175, 239, 0.1);
+	border-color: var(--sl-color-accent);
+	box-shadow: 0 0 20px rgba(97, 175, 239, 0.1);
 }
 
 .sl-markdown-content a {
-  text-decoration: none;
-  border-bottom: 1px solid var(--sl-color-gray-4);
-  transition: border-color 0.2s ease;
+	text-decoration: none;
+	border-bottom: 1px solid var(--sl-color-gray-4);
+	transition: border-color 0.2s ease;
 }
 
 .sl-markdown-content a:hover {
-  border-bottom-color: var(--sl-color-accent);
+	border-bottom-color: var(--sl-color-accent);
 }
 
 code {
-  font-size: 0.8125rem;
+	font-size: 0.8125rem;
 }
 
 .expressive-code .frame pre {
-  border-radius: 8px;
+	border-radius: 8px;
 }

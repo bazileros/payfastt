@@ -1,0 +1,11 @@
+{
+	"version": 1,
+	"skills": {
+		"bazileros-payfast": {
+			"source": "bazileros/payfastt",
+			"sourceType": "github",
+			"skillPath": "packages/payfast/SKILL.md",
+			"computedHash": "10ea89ffbf6d9d66e6563def3b809a345ca6f11ac6ae0611d4c704af367e15e4"
+		}
+	}
+}

@@ -1,8 +1,8 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import schema from "./schema.js";
-import { api } from "./_generated/api.js";
 import { register } from "../test.js";
+import { api } from "./_generated/api.js";
+import schema from "./schema.js";
 
 const modules = import.meta.glob("./**/*.ts");
 

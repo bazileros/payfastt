@@ -1,5 +1,5 @@
-import { md5 } from "./md5.js";
 import type { Env } from "./_generated/server.js";
+import { md5 } from "./md5.js";
 
 function urlEncode(value: string): string {
 	return encodeURIComponent(value).replace(/%20/g, "+");
@@ -92,9 +92,10 @@ export async function callPayfastApi(
 		Object.assign(headers, opts.extraHeaders);
 	}
 
-	const body = Object.keys(bodyFields).length > 0
-		? new URLSearchParams(bodyFields).toString()
-		: undefined;
+	const body =
+		Object.keys(bodyFields).length > 0
+			? new URLSearchParams(bodyFields).toString()
+			: undefined;
 
 	const response = await fetch(url, {
 		method,

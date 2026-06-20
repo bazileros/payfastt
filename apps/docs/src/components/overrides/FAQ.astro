@@ -1,13 +1,14 @@
 ---
 interface FAQItem {
-  question: string;
-  answer: string;
+	question: string;
+	answer: string;
 }
 
 interface Props {
-  items: FAQItem[];
+	items: FAQItem[];
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: used in Astro template
 const { items } = Astro.props;
 ---
 

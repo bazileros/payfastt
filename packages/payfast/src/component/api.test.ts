@@ -12,9 +12,7 @@ describe("callPayfastApi", () => {
 	test("sends GET request to correct sandbox URL", async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(
-				new Response("OK", { status: 200 }),
-			);
+			.mockResolvedValue(new Response("OK", { status: 200 }));
 
 		await callPayfastApi("GET", "/transactions", mockEnv);
 
@@ -35,18 +33,11 @@ describe("callPayfastApi", () => {
 	test("sends POST request with body fields", async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(
-				new Response("OK", { status: 200 }),
-			);
+			.mockResolvedValue(new Response("OK", { status: 200 }));
 
-		await callPayfastApi(
-			"POST",
-			"/subscriptions/tok_123/adhoc",
-			mockEnv,
-			{
-				bodyFields: { amount: "10000", item_name: "Test" },
-			},
-		);
+		await callPayfastApi("POST", "/subscriptions/tok_123/adhoc", mockEnv, {
+			bodyFields: { amount: "10000", item_name: "Test" },
+		});
 
 		const [url, opts] = fetchMock.mock.calls[0] as [string, RequestInit];
 		expect(url).toBe(
@@ -64,9 +55,7 @@ describe("callPayfastApi", () => {
 	test("uses production host when sandbox is false", async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(
-				new Response("OK", { status: 200 }),
-			);
+			.mockResolvedValue(new Response("OK", { status: 200 }));
 
 		await callPayfastApi("GET", "/transactions", {
 			...mockEnv,
@@ -82,9 +71,7 @@ describe("callPayfastApi", () => {
 	test("uses custom apiHost when provided", async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(
-				new Response("OK", { status: 200 }),
-			);
+			.mockResolvedValue(new Response("OK", { status: 200 }));
 
 		await callPayfastApi("GET", "/transactions", mockEnv, {
 			apiHost: "custom.host.com",
@@ -99,9 +86,7 @@ describe("callPayfastApi", () => {
 	test("includes extra headers when provided", async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(
-				new Response("OK", { status: 200 }),
-			);
+			.mockResolvedValue(new Response("OK", { status: 200 }));
 
 		await callPayfastApi("GET", "/transactions", mockEnv, {
 			extraHeaders: { "x-payfast-subscription-type": "1" },
@@ -133,9 +118,7 @@ describe("callPayfastApi", () => {
 	test("handles error responses", async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(
-				new Response("Not Found", { status: 404 }),
-			);
+			.mockResolvedValue(new Response("Not Found", { status: 404 }));
 
 		const result = await callPayfastApi("GET", "/transactions", mockEnv);
 
@@ -149,9 +132,7 @@ describe("callPayfastApi", () => {
 	test("builds valid REST API signature header", async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, "fetch")
-			.mockResolvedValue(
-				new Response("OK", { status: 200 }),
-			);
+			.mockResolvedValue(new Response("OK", { status: 200 }));
 
 		await callPayfastApi("POST", "/refunds", mockEnv, {
 			bodyFields: { ptx_id: "12345", amount: "100.00" },

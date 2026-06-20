@@ -1,44 +1,49 @@
 ---
 interface Card {
-  title: string;
-  href: string;
-  icon: string;
-  description: string;
-  accent: "blue" | "green" | "purple" | "orange" | "red";
+	title: string;
+	href: string;
+	icon: string;
+	description: string;
+	accent: "blue" | "green" | "purple" | "orange" | "red";
 }
 
 interface Props {
-  cards: Card[];
+	cards: Card[];
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: used in Astro template
 const { cards } = Astro.props;
 
-const accentColors: Record<Card["accent"], { bg: string; iconBg: string; border: string }> = {
-  blue: {
-    bg: "var(--bento-blue-bg)",
-    iconBg: "var(--bento-blue-icon)",
-    border: "var(--bento-blue-border)",
-  },
-  green: {
-    bg: "var(--bento-green-bg)",
-    iconBg: "var(--bento-green-icon)",
-    border: "var(--bento-green-border)",
-  },
-  purple: {
-    bg: "var(--bento-purple-bg)",
-    iconBg: "var(--bento-purple-icon)",
-    border: "var(--bento-purple-border)",
-  },
-  orange: {
-    bg: "var(--bento-orange-bg)",
-    iconBg: "var(--bento-orange-icon)",
-    border: "var(--bento-orange-border)",
-  },
-  red: {
-    bg: "var(--bento-red-bg)",
-    iconBg: "var(--bento-red-icon)",
-    border: "var(--bento-red-border)",
-  },
+// biome-ignore lint/correctness/noUnusedVariables: used in Astro template
+const accentColors: Record<
+	Card["accent"],
+	{ bg: string; iconBg: string; border: string }
+> = {
+	blue: {
+		bg: "var(--bento-blue-bg)",
+		iconBg: "var(--bento-blue-icon)",
+		border: "var(--bento-blue-border)",
+	},
+	green: {
+		bg: "var(--bento-green-bg)",
+		iconBg: "var(--bento-green-icon)",
+		border: "var(--bento-green-border)",
+	},
+	purple: {
+		bg: "var(--bento-purple-bg)",
+		iconBg: "var(--bento-purple-icon)",
+		border: "var(--bento-purple-border)",
+	},
+	orange: {
+		bg: "var(--bento-orange-bg)",
+		iconBg: "var(--bento-orange-icon)",
+		border: "var(--bento-orange-border)",
+	},
+	red: {
+		bg: "var(--bento-red-bg)",
+		iconBg: "var(--bento-red-icon)",
+		border: "var(--bento-red-border)",
+	},
 };
 ---
 
