@@ -1,0 +1,266 @@
+---
+title: React Hooks
+description: Reference for all React hooks
+icon: seti:code-search
+---
+
+## Context provider
+
+All hooks support two calling conventions: **explicit-component** (passing `ComponentApi` as first arg) and **context-based** (omitting the component arg when wrapped with `PayfastProvider`).
+
+```tsx
+import { PayfastProvider } from "@bazileros/payfast/react";
+import { components } from "../convex/_generated/api";
+
+function RootLayout() {
+  return (
+    <PayfastProvider component={components.payfast}>
+      <App />
+    </PayfastProvider>
+  );
+}
+```
+
+Then use hooks without the component arg:
+
+```tsx
+const transactions = useTransactions();               // context-based
+const subs = useSubscriptions();                        // context-based
+```
+
+Both patterns are fully typed — the first overload always requires the component, the second overload omits it.
+
+### `usePayfast()`
+
+Returns the `ComponentApi` from context. Throws if used outside `<PayfastProvider>`.
+
+```ts
+import { usePayfast } from "@bazileros/payfast/react";
+
+const component = usePayfast();
+```
+
+## `usePayfastCheckout(component, opts)`
+
+Generates a signed PayFast checkout form.
+
+```ts
+usePayfastCheckout(
+  component: ComponentApi,
+  opts: {
+    amount: number;
+    itemName: string;
+    returnUrl?: string;
+    cancelUrl?: string;
+    notifyUrl?: string;
+    itemDescription?: string;
+    mPaymentId?: string;
+    emailConfirmation?: boolean;
+    confirmationAddress?: string;
+    customInt1-5?: number;
+    customStr1-5?: string;
+    subscriptionType?: 1 | 2;
+    billingDate?: string;
+    recurringAmount?: number;
+    frequency?: number;
+    cycles?: number;
+    token?: string;
+    paymentMethod?: string;
+    setup?: string;
+  },
+): {
+  generateCheckout: () => Promise<void>;
+  formActionUrl: string | null;
+  formFields: Record<string, string> | null;
+  loading: boolean;
+  error: string | null;
+}
+```
+
+Context-based:
+
+```ts
+usePayfastCheckout(opts): { ... }
+```
+
+## `useTransactions(component, filters?)`
+
+Reactive list of transactions.
+
+```ts
+useTransactions(
+  component: ComponentApi,
+  filters?: {
+    userId?: string;
+    status?: TransactionStatus;
+    limit?: number;
+  },
+): Doc<"transactions">[] | undefined
+```
+
+Context-based:
+
+```ts
+useTransactions(filters?): Doc<"transactions">[] | undefined
+```
+
+## `useTransaction(component, transactionId)`
+
+Reactive single transaction lookup.
+
+```ts
+useTransaction(
+  component: ComponentApi,
+  transactionId: Id<"transactions">,
+): Doc<"transactions"> | null | undefined
+```
+
+Context-based:
+
+```ts
+useTransaction(transactionId): Doc<"transactions"> | null | undefined
+```
+
+## `useSubscriptions(component, filters?)`
+
+Reactive list of subscriptions.
+
+```ts
+useSubscriptions(
+  component: ComponentApi,
+  filters?: {
+    userId?: string;
+    status?: SubscriptionStatus;
+  },
+): Doc<"subscriptions">[] | undefined
+```
+
+Context-based:
+
+```ts
+useSubscriptions(filters?): Doc<"subscriptions">[] | undefined
+```
+
+## `useSubscription(component, token)`
+
+Reactive single subscription lookup by token.
+
+```ts
+useSubscription(
+  component: ComponentApi,
+  token: string,
+): Doc<"subscriptions"> | null | undefined
+```
+
+Context-based:
+
+```ts
+useSubscription(token): Doc<"subscriptions"> | null | undefined
+```
+
+## `useSubscriptionActions(component, token)`
+
+Bound mutation callbacks for subscription management.
+
+```ts
+useSubscriptionActions(
+  component: ComponentApi,
+  token: string,
+): {
+  pause: () => Promise<void>;
+  unpause: () => Promise<void>;
+  cancel: () => Promise<void>;
+  update: (args: {
+    amount?: number;
+    frequency?: number;
+    cycles?: number;
+    runDate?: string;
+  }) => Promise<void>;
+}
+```
+
+Context-based:
+
+```ts
+useSubscriptionActions(token): { ... }
+```
+
+## `usePayfastOnsite(component, opts)`
+
+Generates an onsite payment identifier for PayFast's hosted iframe widget.
+
+```ts
+usePayfastOnsite(
+  component: ComponentApi,
+  opts: {
+    amount: number;
+    itemName: string;
+    returnUrl: string;
+    cancelUrl: string;
+    paymentMethod?: string;
+    setup?: string;
+    ...
+  },
+): {
+  generateOnsite: () => Promise<void>;
+  paymentIdentifier: string | null;
+  loading: boolean;
+  error: string | null;
+}
+```
+
+Not available in sandbox mode.
+
+## `useAdhocCharge(component)`
+
+Performs ad-hoc charges against an existing subscription token.
+
+```ts
+useAdhocCharge(
+  component: ComponentApi,
+): {
+  charge: (args: {
+    token: string;
+    amount: number;
+    itemName?: string;
+    itemDescription?: string;
+    itn?: boolean;
+    mPaymentId?: string;
+  }) => Promise<unknown>;
+  loading: boolean;
+  error: string | null;
+}
+```
+
+Context-based:
+
+```ts
+useAdhocCharge(): { ... }
+```
+
+Not available in sandbox mode.
+
+## `useRefund(component)`
+
+Issues full or partial refunds.
+
+```ts
+useRefund(
+  component: ComponentApi,
+): {
+  refund: (args: {
+    ptxId: string;
+    amount?: number;
+  }) => Promise<unknown>;
+  loading: boolean;
+  error: string | null;
+}
+```
+
+Context-based:
+
+```ts
+useRefund(): { ... }
+```
+
+Not available in sandbox mode.

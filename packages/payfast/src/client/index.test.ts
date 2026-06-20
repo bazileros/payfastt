@@ -14,6 +14,12 @@ function mockComponent() {
 			listSubscriptions: "lib.listSubscriptions" as never,
 			getSubscription: "lib.getSubscription" as never,
 			processITN: "lib.processITN" as never,
+			generateOnsitePaymentIdentifier:
+				"lib.generateOnsitePaymentIdentifier" as never,
+			chargeSubscriptionAdhoc: "lib.chargeSubscriptionAdhoc" as never,
+			refundTransaction: "lib.refundTransaction" as never,
+			queryTransactions: "lib.queryTransactions" as never,
+			queryCreditCards: "lib.queryCreditCards" as never,
 		},
 	} as never;
 }
@@ -171,6 +177,101 @@ describe("Payfast", () => {
 		expect(runQuery).toHaveBeenCalledWith("lib.getSubscription", {
 			token: "tok_1",
 		});
+	});
+
+	test("createOnsitePayment calls runAction", async () => {
+		const runAction = vi.fn().mockResolvedValue({
+			paymentIdentifier: "pi_123",
+			signature: "sig",
+			transactionId: "txn_1",
+		});
+		const pf = new Payfast(mockComponent());
+		const result = await pf.createOnsitePayment(
+			mockCtx(undefined, undefined, runAction),
+			{
+				amount: 50,
+				itemName: "Test",
+				userId: "user_1",
+			},
+		);
+		expect(runAction).toHaveBeenCalledWith(
+			"lib.generateOnsitePaymentIdentifier",
+			{ amount: 50, itemName: "Test", userId: "user_1" },
+		);
+		expect(result.paymentIdentifier).toBe("pi_123");
+	});
+
+	test("chargeAdhoc calls runAction", async () => {
+		const runAction = vi.fn().mockResolvedValue({ success: true });
+		const pf = new Payfast(mockComponent());
+		await pf.chargeAdhoc(
+			mockCtx(undefined, undefined, runAction),
+			{ token: "tok_1", amount: 5000 },
+		);
+		expect(runAction).toHaveBeenCalledWith(
+			"lib.chargeSubscriptionAdhoc",
+			{ token: "tok_1", amount: 5000, userId: undefined },
+		);
+	});
+
+	test("refund calls runAction with ptxId", async () => {
+		const runAction = vi.fn().mockResolvedValue({ success: true });
+		const pf = new Payfast(mockComponent());
+		await pf.refund(
+			mockCtx(undefined, undefined, runAction),
+			{ ptxId: "ptx_123" },
+		);
+		expect(runAction).toHaveBeenCalledWith(
+			"lib.refundTransaction",
+			{ ptxId: "ptx_123", amount: undefined },
+		);
+	});
+
+	test("refund calls runAction with amount", async () => {
+		const runAction = vi.fn().mockResolvedValue({ success: true });
+		const pf = new Payfast(mockComponent());
+		await pf.refund(
+			mockCtx(undefined, undefined, runAction),
+			{ ptxId: "ptx_123", amount: 50 },
+		);
+		expect(runAction).toHaveBeenCalledWith(
+			"lib.refundTransaction",
+			{ ptxId: "ptx_123", amount: 50 },
+		);
+	});
+
+	test("queryTransactions calls runAction", async () => {
+		const runAction = vi.fn().mockResolvedValue([]);
+		const pf = new Payfast(mockComponent());
+		await pf.queryTransactions(
+			mockCtx(undefined, undefined, runAction),
+			{ offset: 10 },
+		);
+		expect(runAction).toHaveBeenCalledWith(
+			"lib.queryTransactions",
+			{ offset: 10 },
+		);
+	});
+
+	test("queryTransactions without args calls runAction", async () => {
+		const runAction = vi.fn().mockResolvedValue([]);
+		const pf = new Payfast(mockComponent());
+		await pf.queryTransactions(
+			mockCtx(undefined, undefined, runAction),
+		);
+		expect(runAction).toHaveBeenCalledWith("lib.queryTransactions", {});
+	});
+
+	test("queryCreditCards calls runAction", async () => {
+		const runAction = vi.fn().mockResolvedValue([]);
+		const pf = new Payfast(mockComponent());
+		await pf.queryCreditCards(
+			mockCtx(undefined, undefined, runAction),
+		);
+		expect(runAction).toHaveBeenCalledWith(
+			"lib.queryCreditCards",
+			{},
+		);
 	});
 
 	describe("getUserInfo", () => {

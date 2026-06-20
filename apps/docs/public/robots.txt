@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pfdocs.surestrat.xyz/sitemap-index.xml

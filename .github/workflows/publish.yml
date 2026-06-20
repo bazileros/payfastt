@@ -4,8 +4,15 @@ on:
     tags:
       - "v*"
 
+permissions:
+  id-token: write
+
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
   publish:
+    needs: [test]
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -24,10 +31,15 @@ jobs:
         working-directory: packages/payfast
         run: bun run build
 
-      - name: Publish to npm
+      - name: Publish to npm with provenance
         working-directory: packages/payfast
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" > .npmrc
-          npm publish
+          npm publish --provenance --access public
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "::error::npm publish failed for ${{ github.ref_name }}"

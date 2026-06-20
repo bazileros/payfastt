@@ -13,7 +13,6 @@
 
 <p align="center">
   <a href="#features">Features</a> ·
-  <a href="#why">Why</a> ·
   <a href="#quick-start">Quick Start</a> ·
   <a href="#docs">Docs</a> ·
   <a href="#project-structure">Structure</a>
@@ -44,8 +43,8 @@
   <a href="https://biomejs.dev">
     <img src="https://img.shields.io/badge/Biome-60A5FA?style=flat-square&logo=biome&logoColor=white" alt="Biome">
   </a>
-  <a href="https://payfastt-docs-zalisile.surestrat.workers.dev">
-    <img src="https://img.shields.io/badge/docs-fumadocs-8B5CF6?style=flat-square" alt="docs">
+  <a href="https://payfastt.dev/docs">
+    <img src="https://img.shields.io/badge/docs-starlight-8B5CF6?style=flat-square" alt="docs">
   </a>
 </p>
 
@@ -59,21 +58,14 @@
 - **Recurring billing** — create, pause, unpause, cancel, and update subscriptions
 - **Tokenized charges** — ad-hoc charges against existing subscription tokens
 - **Refunds** — full and partial via PayFast REST API
-- **ITN webhook** — echo-back-validated Instant Transaction Notification processing with typed event handlers
-- **React hooks** — `usePayfastCheckout`, `useTransactions`, `useSubscriptions`, and more
-- **Sandbox mode** — toggle via constructor option; no env var gymnastics
+- **Onsite payments** — hosted iframe widget via `POST /onsite/process`
+- **Transaction history** — query PayFast transaction records
+- **Stored credit cards** — query saved cards via REST API
+- **ITN webhook** — echo-back-validated + source IP checked + signature verified
+- **React hooks** — `usePayfastCheckout`, `useTransactions`, `useSubscriptions`, `useSubscriptionActions`, `usePayfastOnsite`, `useAdhocCharge`, `useRefund`
+- **Context provider** — `PayfastProvider` eliminates passing `components.payfast` to every hook
+- **Sandbox mode** — toggle via `PAYFAST_SANDBOX` env var
 - **Type-safe** — full TypeScript types for requests, responses, and webhook events
-
-## Why
-
-I built this because there wasn't a turnkey PayFast integration for Convex. The existing PayFast SDKs are Node-only or PHP, and wiring up signed forms, REST API calls, and ITN validation yourself is tedious and error-prone.
-
-This component gives you:
-
-- **A single dependency** — `npm install @bazileros/payfast`, register the component, mount the webhook
-- **Typesafe env vars** — `ctx.env.PAYFAST_MERCHANT_ID` at deploy time, not `process.env.PAYFAST_MERCHANT_ID` silently missing at runtime
-- **Works on Convex's edge runtime** — no Node.js APIs, no `crypto` polyfills
-- **React hooks included** — no boilerplate for checkout forms, transaction lists, or subscription management
 
 ## Quick Start
 
@@ -89,18 +81,20 @@ import { defineApp } from "convex/server";
 import payfast from "@bazileros/payfast/convex.config";
 
 const app = defineApp();
-app.use(payfast, {
-  env: {
-    PAYFAST_MERCHANT_ID: { defaultValue: "your-id" },
-    PAYFAST_MERCHANT_KEY: { defaultValue: "your-key" },
-    PAYFAST_PASSPHRASE: { defaultValue: "your-passphrase" },
-    PAYFAST_SANDBOX: { defaultValue: "true" },
-  },
-});
+app.use(payfast);
 export default app;
 ```
 
-### 2. Mount the ITN webhook
+### 2. Set environment variables
+
+```bash
+npx convex env set PAYFAST_MERCHANT_ID    your_merchant_id
+npx convex env set PAYFAST_MERCHANT_KEY   your_merchant_key
+npx convex env set PAYFAST_PASSPHRASE     your_passphrase
+npx convex env set PAYFAST_SANDBOX        true
+```
+
+### 3. Mount the ITN webhook
 
 ```ts
 // convex/http.ts
@@ -113,22 +107,30 @@ registerRoutes(http, components.payfast);
 export default http;
 ```
 
-### 3. Use it
+### 4. Use it
 
 ```tsx
-import { usePayfastCheckout } from "@bazileros/payfast/react";
+import { PayfastProvider, usePayfastCheckout } from "@bazileros/payfast/react";
 import { components } from "../convex/_generated/api";
 
-function Donate() {
-  const { submit } = usePayfastCheckout(components.payfast, {
+function Root() {
+  return (
+    <PayfastProvider component={components.payfast}>
+      <DonateButton />
+    </PayfastProvider>
+  );
+}
+
+function DonateButton() {
+  const { generateCheckout, loading } = usePayfastCheckout({
     amount: 100,
     itemName: "Donation",
   });
-  return <button onClick={submit}>Donate R100</button>;
+  return <button onClick={generateCheckout} disabled={loading}>Donate R100</button>;
 }
 ```
 
-See the full [documentation →](https://payfastt-docs-zalisile.surestrat.workers.dev)
+See the full [documentation →](https://payfastt.dev/docs)
 
 ## Project Structure
 
@@ -140,15 +142,15 @@ payfastt/
 │   │   │   ├── client/   # Payfast class + registerRoutes helper
 │   │   │   ├── component/# Convex component functions (queries, mutations, actions, HTTP)
 │   │   │   └── react/    # React hooks
-│   │   └── README.md
+│   │   └── SKILL.md      # AI agent skill file (skills.sh compatible)
 │   ├── backend/          # Example Convex backend using the component
 │   ├── ui/               # Shared shadcn/ui primitives
 │   └── infra/            # Deployment (Cloudflare Workers via Alchemy)
 ├── apps/
 │   ├── web/              # Example TanStack Router SPA
-│   └── fumadocs/         # Documentation site
+│   └── docs/             # Documentation site (Astro Starlight)
 └── .github/
-    └── workflows/        # CI/CD: test, publish, deploy
+    └── workflows/        # CI/CD: test, deploy, publish
 ```
 
 ## Scripts
@@ -159,6 +161,7 @@ payfastt/
 | `bun run build` | Build all packages and apps |
 | `bun run bootstrap` | First-time setup (codegen + build) |
 | `bun run check` | Biome lint + format check |
+| `bun run check-types` | TypeScript type check all packages |
 
 ## Agent / AI Support
 

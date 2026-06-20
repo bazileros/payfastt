@@ -1,0 +1,148 @@
+---
+title: Subscriptions
+description: Manage recurring billing with PayFast
+icon: random
+---
+
+When a buyer completes a subscription checkout on PayFast, PayFast sends an ITN with the subscription token. The component stores subscriptions in the `subscriptions` table and provides a CRUD API.
+
+## Query subscriptions
+
+### React
+
+```tsx
+import { useSubscriptions, useSubscription } from "@bazileros/payfast/react";
+
+function SubList() {
+  const subs = useSubscriptions();
+  // or filtered:
+  const active = useSubscriptions({ status: "active" });
+}
+```
+
+```tsx
+import { useSubscriptionActions } from "@bazileros/payfast/react";
+
+function SubActions({ token }: { token: string }) {
+  const { pause, unpause, cancel, update } = useSubscriptionActions(token);
+
+  return (
+    <div>
+      <button onClick={pause}>Pause</button>
+      <button onClick={unpause}>Resume</button>
+      <button onClick={cancel}>Cancel</button>
+      <button onClick={() => update({ amount: 199, frequency: 1 })}>
+        Update to R199/month
+      </button>
+    </div>
+  );
+}
+```
+
+## Server-side
+
+```ts
+import { Payfast } from "@bazileros/payfast";
+import { components } from "./_generated/api";
+
+const pf = new Payfast(components.payfast, {
+  sandbox: true,
+  getUserInfo: async (ctx) => {
+    const identity = await getAuthIdentity(ctx);
+    return { userId: identity.subject };
+  },
+});
+
+// userId auto-resolved from context
+export const pause = action({
+  handler: async (ctx) => {
+    await pf.pauseSubscription(ctx, { token: "tok_123" });
+  },
+});
+```
+
+## Subscription statuses
+
+| Status | Description |
+|---|---|
+| `active` | Subscription is active and billing |
+| `paused` | Temporarily stopped |
+| `cancelled` | Cancelled by merchant or user |
+| `completed` | All cycles billed |
+| `suspended` | Payment failure |
+| `expired` | Token expired |
+
+## Card update URL
+
+Generate a URL for the user to update their card details:
+
+```ts
+const pf = new Payfast(components.payfast, { sandbox: true });
+const url = pf.getCardUpdateUrl("tok_123", "https://example.com/return");
+// https://sandbox.payfast.co.za/eng/recurring/update/tok_123?return=...
+```
+
+## Ad-hoc charges
+
+### Automatic (via ITN)
+
+When an ITN arrives for a transaction that has a `token` (matching a subscription), the component automatically charges the subscription ad-hoc for the transaction amount. This enables usage-based billing against a subscription token.
+
+### Manual (via API)
+
+Use the `useAdhocCharge` hook to manually charge a subscription:
+
+```tsx
+import { useAdhocCharge } from "@bazileros/payfast/react";
+
+function ChargeButton({ token }: { token: string }) {
+  const { charge, loading, error } = useAdhocCharge();
+
+  return (
+    <div>
+      <button onClick={() => charge({ token, amount: 5000 })} disabled={loading}>
+        {loading ? "Processing..." : "Charge R50"}
+      </button>
+      {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+```
+
+Or server-side via `Payfast.chargeAdhoc`:
+
+```ts
+await pf.chargeAdhoc(ctx, {
+  token: "tok_123",
+  amount: 5000,           // amount in cents
+  itemName: "Top-up",
+});
+```
+
+Not available in sandbox mode.
+
+## Refunds
+
+Use the `useRefund` hook to issue full or partial refunds:
+
+```tsx
+import { useRefund } from "@bazileros/payfast/react";
+
+function RefundButton({ ptxId }: { ptxId: string }) {
+  const { refund, loading, error } = useRefund();
+
+  return (
+    <button onClick={() => refund({ ptxId })} disabled={loading}>
+      {loading ? "Refunding..." : "Refund"}
+    </button>
+  );
+}
+```
+
+Or server-side via `Payfast.refund`:
+
+```ts
+await pf.refund(ctx, { ptxId: "ptx_123", amount: 50 });
+```
+
+Not available in sandbox mode.

@@ -1,4 +1,3 @@
-import { components } from "@payfastt/backend/convex/_generated/api";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTransactions } from "@bazileros/payfast/react";
 
@@ -7,7 +6,7 @@ export const Route = createFileRoute("/transactions")({
 });
 
 function TransactionsPage() {
-  const transactions = useTransactions(components.payfast);
+  const transactions = useTransactions();
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">

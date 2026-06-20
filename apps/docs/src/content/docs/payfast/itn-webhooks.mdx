@@ -1,0 +1,101 @@
+---
+title: ITN Webhooks
+description: Handle PayFast Instant Transaction Notifications
+icon: seti:javascript
+---
+
+PayFast sends an ITN (Instant Transaction Notification) after every transaction event. The component validates, stores, and exposes these via an event system.
+
+## How it works
+
+1. PayFast POSTs form-encoded data to your `/payfast/itn` endpoint
+2. The component performs **echo-back validation** (posts the raw data back to PayFast)
+3. The component optionally checks the source IP against PayFast's published IP ranges
+4. If `VALID`, it persists the transaction/subscription to the database
+5. If configured, **event handlers** fire with the parsed data
+
+## Source IP validation
+
+By default, incoming ITN requests are validated against PayFast's published IP ranges.
+This is a defense-in-depth measure — echo-back validation is the primary check.
+
+To disable IP validation (e.g., behind a proxy that changes the source IP):
+
+```ts
+registerRoutes(http, components.payfast, {
+  skipIpCheck: true,
+  events: { ... },
+});
+```
+
+## Built-in persistence
+
+The component automatically:
+- Creates/updates `transactions` records
+- Creates/updates `subscriptions` records (when `subscription_type` is present)
+- Creates `itnLogs` records for audit trail
+- Charges ad-hoc subscriptions when a transaction references a token
+
+## Event handlers
+
+Event handlers let you run custom logic after every ITN. They receive the same context as a Convex mutation.
+
+```ts
+import { httpRouter } from "convex/server";
+import { registerRoutes } from "@bazileros/payfast";
+import { components } from "./_generated/api";
+
+const http = httpRouter();
+registerRoutes(http, components.payfast, {
+  events: {
+    onAny: async (ctx, pfData) => {
+      // Called for every VALID ITN
+    },
+    onPaymentComplete: async (ctx, pfData) => {
+      // Grant access, send email, etc.
+    },
+    onPaymentCancelled: async (ctx, pfData) => {
+      // Release holds, notify user
+    },
+    onPaymentRefunded: async (ctx, pfData) => {
+      // Update ledger, notify user
+    },
+    onSubscriptionCancelled: async (ctx, pfData) => {
+      // Revoke access, cleanup resources
+    },
+    onSubscriptionUpdated: async (ctx, pfData) => {
+      // Sync subscription changes
+    },
+  },
+});
+export default http;
+```
+
+## Event handler context
+
+Event handlers receive a minimal context with `runMutation` so you can call your own mutations:
+
+```ts
+onPaymentComplete: async (ctx, pfData) => {
+  await ctx.runMutation(api.myMutations.grantAccess, {
+    pfPaymentId: pfData.pf_payment_id,
+  });
+},
+```
+
+## ITN payload
+
+The `pfData` object contains the raw ITN fields. Common fields:
+
+| Field | Description |
+|---|---|
+| `pf_payment_id` | PayFast payment ID |
+| `payment_status` | `COMPLETE`, `PENDING`, `CANCELLED`, `REFUNDED` |
+| `amount_gross` | Full payment amount |
+| `item_name` | Item name from checkout |
+| `token` | Subscription token (for recurring) |
+| `subscription_status` | `active`, `paused`, `cancelled`, etc. |
+| `subscription_type` | `1` or `2` |
+| `billing_date` | Next billing date |
+| `m_payment_id` | Your internal payment ID |
+| `signature` | ITN signature |

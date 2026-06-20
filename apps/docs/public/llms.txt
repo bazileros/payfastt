@@ -1,0 +1,26 @@
+# PayFast Docs
+
+> @bazileros/payfast Convex component for the PayFast South African payment gateway. One-time payments, subscriptions, tokenized charges, refunds, and ITN webhook processing.
+
+## Getting Started
+
+- [Overview](/payfast/): Architecture, features, and quick start
+- [Installation](/payfast/installation): Step-by-step setup guide with environment variables
+
+## Guides
+
+- [One-time Payments](/payfast/checkout): Form redirect payments with usePayfastCheckout
+- [Subscriptions](/payfast/subscriptions): Recurring billing management
+- [ITN Webhooks](/payfast/itn-webhooks): Echo-back validation and event handlers
+
+## Reference
+
+- [React Hooks](/payfast/react-hooks): API reference for usePayfastCheckout, useTransactions, useSubscriptions, useSubscriptionActions
+- [Server-side API](/payfast/server-side): Payfast class with typed wrapper methods
+- [Best Practices](/payfast/best-practices): Security, idempotency, monorepo tips
+
+## Optional
+
+- [GitHub Repository](https://github.com/bazileros/payfastt): Source code and issue tracker
+- [PayFast Documentation](https://developers.payfast.co.za/docs): Official PayFast integration guide
+- [PayFast Sandbox](https://sandbox.payfast.co.za): Test environment

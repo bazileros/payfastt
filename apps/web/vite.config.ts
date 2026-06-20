@@ -18,4 +18,29 @@ export default defineConfig({
     }),
     react(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: "vendor-react",
+              test: /node_modules[\\/](react|react-dom|scheduler)/,
+              priority: 20,
+            },
+            {
+              name: "vendor-router",
+              test: /node_modules[\\/]@tanstack/,
+              priority: 15,
+            },
+            {
+              name: "vendor",
+              test: /node_modules/,
+              priority: 10,
+            },
+          ],
+        },
+      },
+    },
+  },
 });

@@ -7,6 +7,7 @@ import type {
 } from "convex/server";
 import { httpActionGeneric } from "convex/server";
 import type { ComponentApi } from "../component/_generated/component.js";
+import { validateItnSourceIp } from "../component/ips.js";
 import type {
 	SubscriptionStatus,
 	TransactionStatus,
@@ -50,6 +51,15 @@ export type CheckoutArgs = {
 	frequency?: number;
 	cycles?: number;
 	token?: string;
+	paymentMethod?: string;
+	setup?: string;
+};
+
+export type SplitPaymentOptions = {
+	merchantId: string;
+	amount: string;
+	table?: string;
+	passphrase?: string;
 };
 
 /** ITN event handlers dispatched after built-in persistence succeeds. */
@@ -255,6 +265,57 @@ export class Payfast {
 		});
 	}
 
+	async createOnsitePayment(
+		ctx: ActionCtx,
+		args: CheckoutArgs & { userId?: string },
+	) {
+		const userId = await this.resolveUserId(ctx, args.userId);
+		return await ctx.runAction(
+			this.component.lib.generateOnsitePaymentIdentifier,
+			{ ...args, userId },
+		);
+	}
+
+	async chargeAdhoc(
+		ctx: ActionCtx,
+		args: {
+			token: string;
+			amount: number;
+			itemName?: string;
+			itemDescription?: string;
+			itn?: boolean;
+			mPaymentId?: string;
+			userId?: string;
+		},
+	) {
+		const userId = await this.resolveUserId(ctx, args.userId);
+		return await ctx.runAction(
+			this.component.lib.chargeSubscriptionAdhoc,
+			{ ...args, userId },
+		);
+	}
+
+	async refund(
+		ctx: ActionCtx,
+		args: { ptxId: string; amount?: number; userId?: string },
+	) {
+		return await ctx.runAction(this.component.lib.refundTransaction, args);
+	}
+
+	async queryTransactions(
+		ctx: ActionCtx,
+		args?: { offset?: number },
+	) {
+		return await ctx.runAction(
+			this.component.lib.queryTransactions,
+			args ?? {},
+		);
+	}
+
+	async queryCreditCards(ctx: ActionCtx) {
+		return await ctx.runAction(this.component.lib.queryCreditCards, {});
+	}
+
 	getCardUpdateUrl(token: string, returnUrl?: string): string {
 		const host = this.sandbox ? "sandbox.payfast.co.za" : "www.payfast.co.za";
 		let url = `https://${host}/eng/recurring/update/${encodeURIComponent(token)}`;
@@ -270,6 +331,7 @@ export function registerRoutes(
 	component: PayfastComponent,
 	config?: {
 		itnPath?: string;
+		skipIpCheck?: boolean;
 		/**
 		 * Custom event handlers for ITN notifications.
 		 * Called after built-in persistence (transaction/subscription records).
@@ -290,6 +352,16 @@ export function registerRoutes(
 				if (key && value !== undefined) {
 					pfData[decodeURIComponent(key.replace(/\+/g, " "))] =
 						decodeURIComponent(value.replace(/\+/g, " "));
+				}
+			}
+
+			if (!config?.skipIpCheck) {
+				const clientIp =
+					req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+					req.headers.get("x-real-ip") ??
+					null;
+				if (clientIp && !validateItnSourceIp(clientIp)) {
+					return new Response("INVALID", { status: 200 });
 				}
 			}
 

@@ -1,0 +1,542 @@
+---
+title: React Native / Expo
+description: Integrate @bazileros/payfast with React Native and Expo
+icon: seti:mobile
+sidebar:
+  order: 4
+---
+
+PayFast is a web-based payment gateway. In React Native, there is no HTML `<form>` to POST or browser URL to navigate. This guide covers the patterns for accepting PayFast payments in mobile apps using **WebView** and **deep linking**.
+
+## Key challenges
+
+| Challenge | Solution |
+|---|---|
+| No HTML forms | Generate the signed form server-side, render it in a WebView, auto-submit |
+| No browser URL bar | Use deep linking for return/cancel URLs |
+| PayFast redirects to browser | Open PayFast in a full-screen WebView or system browser |
+| ITN webhook unchanged | Works the same — Convex handles it server-side |
+| Convex hooks work in RN | Yes — `@bazileros/payfast/react` hooks work with `convex/react` in React Native |
+
+## Project setup
+
+```bash
+npx create-expo-app@latest my-app --template blank-typescript
+cd my-app
+npx expo install react-native-webview
+npm install convex @bazileros/payfast
+npx convex dev
+```
+
+## 1. Convex configuration
+
+Backend config in `convex/convex.config.ts`:
+
+```ts
+import { defineApp } from "convex/server";
+import payfast from "@bazileros/payfast/convex.config";
+
+const app = defineApp();
+app.use(payfast);
+export default app;
+```
+
+HTTP router in `convex/http.ts`:
+
+```ts
+import { httpRouter } from "convex/server";
+import { components } from "./_generated/api";
+import { registerRoutes } from "@bazileros/payfast/http";
+
+const http = httpRouter();
+
+registerRoutes(http, components.payfast, {
+  events: {
+    onPaymentComplete: async (ctx, pfData) => {
+      await ctx.runMutation(api.myMutations.grantAccess, {
+        pfPaymentId: pfData.pf_payment_id,
+        amount: pfData.amount_gross,
+        email: pfData.email_address,
+      });
+    },
+    onSubscriptionCancelled: async (ctx, pfData) => {
+      await ctx.runMutation(api.myMutations.revokeAccess, {
+        token: pfData.token,
+      });
+    },
+  },
+});
+
+export default http;
+```
+
+## 2. ConvexProvider + PayfastProvider
+
+In `App.tsx`:
+
+```tsx
+import { ConvexReactClient } from "convex/react";
+import { ConvexProvider } from "convex/react";
+import { PayfastProvider } from "@bazileros/payfast/react";
+import { components } from "../convex/_generated/api";
+
+const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!);
+
+export default function App() {
+  return (
+    <ConvexProvider client={convex}>
+      <PayfastProvider component={components.payfast}>
+        <NavigationContainer>
+          {/* your screens */}
+        </NavigationContainer>
+      </PayfastProvider>
+    </ConvexProvider>
+  );
+}
+```
+
+## 3. WebView checkout (Core pattern)
+
+The critical pattern for mobile: generate the signed form server-side, render it in a WebView, and auto-submit it. The WebView intercepts navigation to detect success/cancellation.
+
+```tsx
+import { usePayfastCheckout } from "@bazileros/payfast/react";
+import { useCallback, useRef, useState } from "react";
+import { View, Text, Button, ActivityIndicator } from "react-native";
+import { WebView, type WebViewNavigation } from "react-native-webview";
+
+// Deep link scheme registered in app.json
+const RETURN_SCHEME = "myapp://";
+const RETURN_HOST = "payfast-return";
+const CANCEL_HOST = "payfast-cancel";
+
+export default function CheckoutScreen() {
+  const webViewRef = useRef<WebView>(null);
+  const [showWebView, setShowWebView] = useState(false);
+  const [webViewHtml, setWebViewHtml] = useState<string | null>(null);
+
+  const {
+    generateCheckout,
+    formActionUrl,
+    formFields,
+    loading,
+    error,
+  } = usePayfastCheckout({
+    amount: 100,
+    itemName: "Donation",
+    returnUrl: `${RETURN_SCHEME}${RETURN_HOST}`,
+    cancelUrl: `${RETURN_SCHEME}${CANCEL_HOST}`,
+  });
+
+  const handlePay = async () => {
+    await generateCheckout();
+    if (formActionUrl && formFields) {
+      // Build HTML form that auto-submits
+      const html = buildPayFastForm(formActionUrl, formFields);
+      setWebViewHtml(html);
+      setShowWebView(true);
+    }
+  };
+
+  const handleNavigationStateChange = useCallback(
+    (nav: WebViewNavigation) => {
+      if (nav.url.startsWith(RETURN_SCHEME)) {
+        // Payment completed — navigate back to app
+        setShowWebView(false);
+        setWebViewHtml(null);
+        // Refresh transactions, show success, etc.
+      } else if (nav.url.startsWith(CANCEL_HOST)) {
+        // Payment cancelled
+        setShowWebView(false);
+        setWebViewHtml(null);
+      }
+    },
+    [],
+  );
+
+  if (showWebView && webViewHtml) {
+    return (
+      <View style={{ flex: 1 }}>
+        <WebView
+          ref={webViewRef}
+          source={{ html: webViewHtml }}
+          onNavigationStateChange={handleNavigationStateChange}
+          javaScriptEnabled
+          startInLoadingState
+          renderLoading={() => <ActivityIndicator />}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      <Text>Amount: R100</Text>
+      <Button
+        title={loading ? "Preparing..." : "Pay with PayFast"}
+        onPress={handlePay}
+        disabled={loading}
+      />
+      {error && <Text style={{ color: "red" }}>{error}</Text>}
+    </View>
+  );
+}
+
+function buildPayFastForm(
+  actionUrl: string,
+  fields: Record<string, string>,
+): string {
+  const inputs = Object.entries(fields)
+    .map(
+      ([key, value]) =>
+        `<input type="hidden" name="${key}" value="${value}" />`,
+    )
+    .join("\n");
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body onload="document.forms[0].submit()">
+      <form action="${actionUrl}" method="POST">
+        ${inputs}
+      </form>
+    </body>
+    </html>
+  `;
+}
+```
+
+## 4. Deep link setup
+
+React Native cannot receive HTTP redirects like a web browser. Instead, register custom URL schemes and handle the redirect in the WebView's `onNavigationStateChange`.
+
+### Expo managed workflow
+
+In `app.json`:
+
+```json
+{
+  "expo": {
+    "scheme": "myapp",
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
+```
+
+### Bare React Native
+
+On Android (`android/app/src/main/res/xml/deep_links.xml`):
+
+```xml
+<deepLinks>
+  <filter>
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="myapp" />
+  </filter>
+</deepLinks>
+```
+
+On iOS (`AppDelegate.swift` handling):
+
+```swift
+func application(
+  _ app: UIApplication,
+  open url: URL,
+  options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+) -> Bool {
+  return RCTLinkingManager.application(app, open: url, options: options)
+}
+```
+
+## 5. Subscribe checkout (transactions + subscriptions)
+
+### Transactions list
+
+```tsx
+import { useTransactions } from "@bazileros/payfast/react";
+import { View, Text, FlatList, ActivityIndicator } from "react-native";
+
+export default function TransactionsScreen() {
+  const transactions = useTransactions();
+
+  if (transactions === undefined) {
+    return <ActivityIndicator />;
+  }
+
+  return (
+    <FlatList
+      data={transactions}
+      keyExtractor={(item) => item._id}
+      renderItem={({ item }) => (
+        <View style={styles.card}>
+          <Text style={styles.itemName}>{item.itemName}</Text>
+          <Text>R{item.amount.toFixed(2)}</Text>
+          <Text>Status: {item.status}</Text>
+          <Text>Date: {new Date(item._creationTime).toLocaleDateString()}</Text>
+        </View>
+      )}
+      ListEmptyComponent={<Text>No transactions yet.</Text>}
+    />
+  );
+}
+```
+
+### Subscriptions list with actions
+
+```tsx
+import {
+  useSubscriptions,
+  useSubscriptionActions,
+} from "@bazileros/payfast/react";
+import { View, Text, FlatList, TouchableOpacity, Alert } from "react-native";
+
+function SubscriptionCard({ token }: { token: string }) {
+  const { pause, unpause, cancel } = useSubscriptionActions(token);
+
+  const handlePause = async () => {
+    try {
+      await pause();
+      Alert.alert("Success", "Subscription paused");
+    } catch (err) {
+      Alert.alert("Error", err instanceof Error ? err.message : "Pause failed");
+    }
+  };
+
+  return (
+    <View style={styles.actions}>
+      <TouchableOpacity onPress={handlePause}>
+        <Text>Pause</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={unpause}>
+        <Text>Resume</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={cancel}>
+        <Text>Cancel</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+export default function SubscriptionsScreen() {
+  const subscriptions = useSubscriptions();
+
+  return (
+    <FlatList
+      data={subscriptions}
+      keyExtractor={(item) => item._id}
+      renderItem={({ item }) => (
+        <View style={styles.card}>
+          <Text>{item.itemName}</Text>
+          <Text>Status: {item.status}</Text>
+          <Text>Amount: R{item.amount?.toFixed(2)}</Text>
+          <Text>Token: {item.token}</Text>
+          <SubscriptionCard token={item.token} />
+        </View>
+      )}
+    />
+  );
+}
+```
+
+## 6. Ad-hoc charges
+
+```tsx
+import { useAdhocCharge } from "@bazileros/payfast/react";
+import { TouchableOpacity, Text, Alert, ActivityIndicator } from "react-native";
+
+function ChargeButton({ token }: { token: string }) {
+  const { charge, loading, error } = useAdhocCharge();
+
+  const handleCharge = async () => {
+    try {
+      await charge({ token, amount: 5000, itemName: "Top-up" });
+      Alert.alert("Success", "Charge processed");
+    } catch (err) {
+      Alert.alert("Error", err instanceof Error ? err.message : "Charge failed");
+    }
+  };
+
+  return (
+    <TouchableOpacity onPress={handleCharge} disabled={loading}>
+      {loading ? <ActivityIndicator /> : <Text>Charge R50</Text>}
+    </TouchableOpacity>
+  );
+}
+```
+
+## 7. Refunds
+
+```tsx
+import { useRefund } from "@bazileros/payfast/react";
+import { TouchableOpacity, Text, Alert } from "react-native";
+
+function RefundButton({ ptxId }: { ptxId: string }) {
+  const { refund, loading } = useRefund();
+
+  const handleRefund = async () => {
+    Alert.alert("Confirm Refund", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Refund",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await refund({ ptxId });
+            Alert.alert("Success", "Refund processed");
+          } catch (err) {
+            Alert.alert("Error", err instanceof Error ? err.message : "Refund failed");
+          }
+        },
+      },
+    ]);
+  };
+
+  return (
+    <TouchableOpacity onPress={handleRefund} disabled={loading}>
+      <Text>{loading ? "Refunding..." : "Refund"}</Text>
+    </TouchableOpacity>
+  );
+}
+```
+
+## 8. Using system browser instead of WebView
+
+For a simpler approach, open PayFast in the device's system browser. The user returns to the app via deep link:
+
+```tsx
+import * as WebBrowser from "expo-web-browser";
+import { usePayfastCheckout } from "@bazileros/payfast/react";
+import { Button, View, Text } from "react-native";
+
+export default function CheckoutScreen() {
+  const { generateCheckout, formActionUrl, formFields, loading, error } =
+    usePayfastCheckout({
+      amount: 100,
+      itemName: "Donation",
+      returnUrl: "myapp://payfast-return",
+      cancelUrl: "myapp://payfast-cancel",
+    });
+
+  const handlePay = async () => {
+    await generateCheckout();
+    if (formActionUrl && formFields) {
+      // Build the form URL with query params for GET-based redirect
+      const params = new URLSearchParams(formFields).toString();
+      const url = `${formActionUrl}?${params}`;
+      await WebBrowser.openAuthSessionAsync(url, "myapp://");
+    }
+  };
+
+  return (
+    <View>
+      <Button title={loading ? "Preparing..." : "Pay R100"} onPress={handlePay} />
+      {error && <Text>{error}</Text>}
+    </View>
+  );
+}
+```
+
+:::note[WebBrowser vs WebView]
+`expo-web-browser` opens a Chrome Custom Tab / Safari View Controller — the user sees a familiar browser UI. `react-native-webview` embeds the page in your app. Both work. The WebView approach gives you more control over the UX (no tab switching). The system browser approach is simpler but requires the user to switch back to the app.
+:::
+
+PayFast's form method is POST, which `WebBrowser.openAuthSessionAsync` may not handle natively for redirect-based flows. The WebView approach with embedded HTML is more reliable.
+
+## 9. Expo Router integration
+
+If using Expo Router (file-based routing), mount providers in the root layout:
+
+```tsx
+// app/_layout.tsx
+import { ConvexReactClient } from "convex/react";
+import { ConvexProvider } from "convex/react";
+import { PayfastProvider } from "@bazileros/payfast/react";
+import { Stack } from "expo-router";
+import { components } from "../convex/_generated/api";
+
+const convex = new ConvexReactClient(
+  process.env.EXPO_PUBLIC_CONVEX_URL!,
+);
+
+export default function RootLayout() {
+  return (
+    <ConvexProvider client={convex}>
+      <PayfastProvider component={components.payfast}>
+        <Stack />
+      </PayfastProvider>
+    </ConvexProvider>
+  );
+}
+```
+
+## 10. Server-side API usage
+
+Convex actions work the same way in React Native. Use `useAction` for custom PayFast server interactions:
+
+```tsx
+import { useAction } from "convex/react";
+import { components } from "../convex/_generated/api";
+
+export function usePayFastAdmin() {
+  const refundTx = useAction(components.payfast.lib.refundTransaction);
+  const chargeAdhoc = useAction(components.payfast.lib.chargeSubscriptionAdhoc);
+  const queryTx = useAction(components.payfast.lib.queryTransactions);
+  const queryCC = useAction(components.payfast.lib.queryCreditCards);
+
+  return { refundTx, chargeAdhoc, queryTx, queryCC };
+}
+```
+
+## 11. Push notifications for ITN events
+
+Since mobile apps can't receive PayFast webhooks directly, use Convex's real-time subscriptions to react to payment events:
+
+```tsx
+import { useTransactions } from "@bazileros/payfast/react";
+import { useEffect } from "react";
+
+function PaymentWatcher() {
+  const transactions = useTransactions({ status: "PENDING" });
+
+  useEffect(() => {
+    // When a new transaction arrives via ITN, show notification
+    if (transactions && transactions.length > 0) {
+      // trigger push notification / in-app alert
+    }
+  }, [transactions]);
+
+  return null;
+}
+```
+
+Use this in combination with a push notification service (Expo Push Notifications, OneSignal, etc.) triggered from your ITN event handlers:
+
+```ts
+// convex/http.ts — inside your ITN handler
+onPaymentComplete: async (ctx, pfData) => {
+  await ctx.runMutation(api.notifications.sendPush, {
+    userId: lookupUserByPaymentId(pfData.m_payment_id),
+    title: "Payment received",
+    body: `R${pfData.amount_gross} received`,
+  });
+},
+```
+
+## 12. Production checklist
+
+- [ ] Register a custom URL scheme in `app.json` for deep link return URLs
+- [ ] Test deep link handling on both iOS simulator and Android emulator
+- [ ] Set `EXPO_PUBLIC_CONVEX_URL` in production build environment (EAS Build secrets or `.env.production`)
+- [ ] Set PayFast production credentials via `npx convex env set`
+- [ ] Configure PayFast Notify URL: `https://YOUR_PROJECT.convex.site/payfast/itn`
+- [ ] Test WebView checkout flow end-to-end in sandbox mode first
+- [ ] Handle edge cases: WebView loading failures, network timeouts, partial redirects
+- [ ] Add a fallback UI if the WebView fails to load (retry button)
+- [ ] Consider using `expo-web-browser` as a simpler alternative to WebView

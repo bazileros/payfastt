@@ -1,0 +1,142 @@
+---
+title: PayFast Docs
+description: "@bazileros/payfast Convex component for PayFast"
+template: splash
+hero:
+  tagline: PayFast for Convex
+  actions:
+    - text: Get started
+      link: /payfast/installation
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/bazileros/payfastt
+      icon: external
+---
+
+`@bazileros/payfast` integrates the PayFast South African payment gateway into your Convex app. One-time payments, subscriptions, tokenized charges, refunds, and ITN webhook processing.
+
+import BentoGrid from "../../components/overrides/BentoGrid.astro";
+
+<BentoGrid
+  cards={[
+    {
+      title: "Getting Started",
+      description: "Install and configure the PayFast component in your Convex project",
+      href: "/payfast/installation",
+      icon: "⚡",
+      accent: "blue",
+    },
+    {
+      title: "One-time Payments",
+      description: "Accept payments with form redirect using PayFast Custom Integration",
+      href: "/payfast/checkout",
+      icon: "💳",
+      accent: "green",
+    },
+    {
+      title: "Subscriptions",
+      description: "Manage recurring billing with PayFast subscriptions and tokens",
+      href: "/payfast/subscriptions",
+      icon: "🔄",
+      accent: "purple",
+    },
+    {
+      title: "React Hooks",
+      description: "Type-safe React hooks for checkout, transactions, and subscriptions",
+      href: "/payfast/react-hooks",
+      icon: "⚛️",
+      accent: "blue",
+    },
+    {
+      title: "Server-side API",
+      description: "Payfast class reference for transactions, subscriptions, and refunds",
+      href: "/payfast/server-side",
+      icon: "🖥️",
+      accent: "orange",
+    },
+    {
+      title: "ITN Webhooks",
+      description: "Handle and validate PayFast Instant Transaction Notifications",
+      href: "/payfast/itn-webhooks",
+      icon: "🔔",
+      accent: "red",
+    },
+    {
+      title: "Best Practices",
+      description: "Recommended patterns for production use, security, and testing",
+      href: "/payfast/best-practices",
+      icon: "⭐",
+      accent: "green",
+    },
+    {
+      title: "Next.js Guide",
+      description: "Using PayFast with Next.js App Router — providers, checkout, server actions",
+      href: "/payfast/framework-nextjs",
+      icon: "▲",
+      accent: "blue",
+    },
+    {
+      title: "Vite + React",
+      description: "Quick setup with Vite and React for fast prototyping",
+      href: "/payfast/framework-vite",
+      icon: "⚡",
+      accent: "green",
+    },
+    {
+      title: "TanStack Router",
+      description: "Type-safe routing with TanStack Router and Convex",
+      href: "/payfast/framework-tanstack",
+      icon: "🥞",
+      accent: "orange",
+    },
+    {
+      title: "TanStack Start",
+      description: "Full-stack PayFast with server functions, SSR, and middleware",
+      href: "/payfast/framework-tanstack-start",
+      icon: "⚡",
+      accent: "blue",
+    },
+    {
+      title: "React Native Guide",
+      description: "Mobile PayFast with WebView, deep linking, and Expo",
+      href: "/payfast/framework-react-native",
+      icon: "📱",
+      accent: "purple",
+    },
+    {
+      title: "Split Payments",
+      description: "Distribute payments across multiple receivers in marketplace scenarios",
+      href: "/payfast/split-payments",
+      icon: "🔀",
+      accent: "orange",
+    },
+  ]}
+/>
+
+import FAQ from "../../components/overrides/FAQ.astro";
+
+<FAQ
+  items={[
+    {
+      question: "What is PayFast?",
+      answer: "PayFast is a South African payment gateway that supports one-time payments, recurring billing, and tokenized charges. This component wraps PayFast's Custom Integration and REST API for use inside a Convex app.",
+    },
+    {
+      question: "Do I need a PayFast account?",
+      answer: "Yes. Sign up at [payfast.co.za](https://www.payfast.co.za) for a merchant account. You will receive a merchant ID, merchant key, and passphrase. Use the [sandbox environment](https://sandbox.payfast.co.za) for development and testing.",
+    },
+    {
+      question: "How does this differ from using PayFast directly?",
+      answer: "This component handles signed form generation, ITN webhook validation with echo-back, subscription lifecycle management, and provides typed React hooks. It also stores transaction and subscription state in Convex tables for reactive queries.",
+    },
+    {
+      question: "Can I use this with other frontend frameworks?",
+      answer: "Yes. The Convex component works with any framework that supports Convex. The React hooks package is optional; you can use the server-side API directly via `useAction` or `useMutation` from any framework.",
+    },
+    {
+      question: "What is the sandbox environment?",
+      answer: "The sandbox is PayFast's test environment at `sandbox.payfast.co.za`. Set `PAYFAST_SANDBOX=true` in your Convex env vars, and all requests will be routed to the test endpoint. Use test card numbers from the PayFast documentation.",
+    },
+  ]}
+/>

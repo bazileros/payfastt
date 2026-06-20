@@ -1,0 +1,495 @@
+---
+title: Next.js App Router
+description: Integrate @bazileros/payfast with Next.js App Router
+icon: brand-react
+sidebar:
+  order: 1
+---
+
+This guide covers using the PayFast Convex component in a Next.js app with the App Router. You'll learn how to handle the client/server boundary, set up the `PayfastProvider`, manage checkout forms, and display transactions/subscriptions.
+
+## Project setup
+
+Start with the Next.js App Router template (Pages Router is not supported by Convex's React bindings):
+
+```bash
+npx create-next-app@latest my-app --typescript --app --eslint
+cd my-app
+npm install convex @bazileros/payfast react@latest react-dom@latest
+npx convex dev
+```
+
+## 1. Convex configuration
+
+Create your backend config in `convex/convex.config.ts`:
+
+```ts
+import { defineApp } from "convex/server";
+import payfast from "@bazileros/payfast/convex.config";
+
+const app = defineApp();
+app.use(payfast);
+export default app;
+```
+
+Create the HTTP router for ITN webhooks in `convex/http.ts`:
+
+```ts
+import { httpRouter } from "convex/server";
+import { components } from "./_generated/api";
+import { registerRoutes } from "@bazileros/payfast/http";
+
+const http = httpRouter();
+
+registerRoutes(http, components.payfast, {
+  events: {
+    onPaymentComplete: async (ctx, pfData) => {
+      await ctx.runMutation(api.myMutations.grantAccess, {
+        pfPaymentId: pfData.pf_payment_id,
+        amount: pfData.amount_gross,
+      });
+    },
+    onSubscriptionCancelled: async (ctx, pfData) => {
+      await ctx.runMutation(api.myMutations.revokeAccess, {
+        token: pfData.token,
+      });
+    },
+  },
+});
+
+export default http;
+```
+
+Set environment variables:
+
+```bash
+npx convex env set PAYFAST_MERCHANT_ID 12345678
+npx convex env set PAYFAST_MERCHANT_KEY abc123abc123abc1
+npx convex env set PAYFAST_PASSPHRASE your-secret-passphrase
+npx convex env set PAYFAST_SANDBOX true
+```
+
+## 2. ConvexProvider + PayfastProvider
+
+The critical architectural decision in Next.js App Router is **where** to mount the providers. Since Convex uses React context, all providers must be in a Client Component.
+
+Create `app/providers.tsx`:
+
+```tsx
+"use client";
+
+import { components } from "@payfastt/backend/convex/_generated/api";
+import { PayfastProvider } from "@bazileros/payfast/react";
+import { ConvexReactClient } from "convex/react";
+import { ConvexProvider } from "convex/react";
+import type { ReactNode } from "react";
+
+const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+
+export function Providers({ children }: { children: ReactNode }) {
+  return (
+    <ConvexProvider client={convex}>
+      <PayfastProvider component={components.payfast}>
+        {children}
+      </PayfastProvider>
+    </ConvexProvider>
+  );
+}
+```
+
+Wrap your root layout in `app/layout.tsx`:
+
+```tsx
+import type { Metadata } from "next";
+import { Providers } from "./providers";
+
+export const metadata: Metadata = {
+  title: "My App",
+  description: "PayFast + Convex + Next.js",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
+```
+
+:::caution[Client Component boundary]
+`app/providers.tsx` must be a Client Component (`"use client"`). Everything inside `<Providers>` can be Server Components by default. Only pages/components that use Convex hooks need the `"use client"` directive.
+:::
+
+## 3. Checkout page
+
+Create `app/checkout/page.tsx`:
+
+```tsx
+"use client";
+
+import { usePayfastCheckout } from "@bazileros/payfast/react";
+import { useEffect, useRef } from "react";
+
+export default function CheckoutPage() {
+  const {
+    generateCheckout,
+    formActionUrl,
+    formFields,
+    loading,
+    error,
+  } = usePayfastCheckout({
+    amount: 100,
+    itemName: "Monthly Membership",
+    returnUrl: `${window.location.origin}/transactions`,
+    cancelUrl: `${window.location.origin}/checkout`,
+  });
+
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (formActionUrl && formFields && formRef.current) {
+      formRef.current.submit();
+    }
+  }, [formActionUrl, formFields]);
+
+  if (error) {
+    return <div className="error">{error}</div>;
+  }
+
+  if (formActionUrl) {
+    return (
+      <form ref={formRef} action={formActionUrl} method="POST" className="hidden">
+        {Object.entries(formFields!).map(([key, value]) => (
+          <input key={key} type="hidden" name={key} value={value} />
+        ))}
+      </form>
+    );
+  }
+
+  return (
+    <div>
+      <h1>Checkout</h1>
+      <p>Complete your purchase of R100.</p>
+      <button onClick={generateCheckout} disabled={loading}>
+        {loading ? "Generating..." : "Pay with PayFast"}
+      </button>
+    </div>
+  );
+}
+```
+
+:::tip[Why the hidden form + auto-submit pattern?]
+PayFast's Custom Integration requires a real HTML `<form>` POST. The pattern above generates the form fields via Convex action, then auto-submits via `useEffect` once the fields are ready. The form is hidden with CSS so the redirect is seamless.
+:::
+
+### Subscription checkout
+
+```tsx
+const { generateCheckout } = usePayfastCheckout({
+  amount: 50,
+  itemName: "Monthly Membership",
+  subscriptionType: 1,
+  recurringAmount: 50,
+  frequency: 1,
+  cycles: 12,
+  returnUrl: `${window.location.origin}/subscriptions`,
+  cancelUrl: `${window.location.origin}/checkout`,
+});
+```
+
+## 4. Transactions page
+
+```tsx
+"use client";
+
+import { useTransactions } from "@bazileros/payfast/react";
+
+export default function TransactionsPage() {
+  const transactions = useTransactions();
+
+  if (transactions === undefined) {
+    return <p>Loading...</p>;
+  }
+
+  if (transactions.length === 0) {
+    return <p>No transactions yet.</p>;
+  }
+
+  return (
+    <div>
+      <h1>Transactions</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {transactions.map((tx) => (
+            <tr key={tx._id}>
+              <td>{tx.itemName}</td>
+              <td>R{tx.amount.toFixed(2)}</td>
+              <td>{tx.status}</td>
+              <td>{new Date(tx._creationTime).toLocaleDateString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+```
+
+### Server-side rendering considerations
+
+Since `useTransactions` is a Convex `useQuery` hook, it fetches data reactively on the client. For pages that are mostly static, you can preload data using Convex's `usePreloadedQuery`:
+
+```tsx
+"use client";
+
+import { usePreloadedQuery, useQuery } from "convex/react";
+import { api } from "@payfastt/backend/convex/_generated/api";
+
+export default function TransactionsPage() {
+  // Reactive — automatically updates when data changes
+  const transactions = useTransactions({ limit: 10 });
+  // ...
+}
+```
+
+If you need initial data for SSR/SEO, consider a hybrid approach: render a static shell on the server and let Convex's reactive subscription populate the data client-side.
+
+## 5. Subscriptions page with management
+
+```tsx
+"use client";
+
+import {
+  useSubscriptions,
+  useSubscriptionActions,
+  useAdhocCharge,
+} from "@bazileros/payfast/react";
+
+function SubscriptionCard({ token }: { token: string }) {
+  const { pause, unpause, cancel } = useSubscriptionActions(token);
+  const { charge, loading: charging } = useAdhocCharge();
+
+  return (
+    <div className="card">
+      <div className="actions">
+        <button onClick={pause}>Pause</button>
+        <button onClick={unpause}>Resume</button>
+        <button onClick={cancel}>Cancel</button>
+        <button onClick={() => charge({ token, amount: 5000 })} disabled={charging}>
+          {charging ? "Charging..." : "Charge R50"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function SubscriptionsPage() {
+  const subscriptions = useSubscriptions();
+
+  return (
+    <div>
+      <h1>Subscriptions</h1>
+      {subscriptions?.map((sub) => (
+        <div key={sub._id} className="card">
+          <h2>{sub.itemName}</h2>
+          <p>Status: {sub.status}</p>
+          <p>Amount: R{sub.amount?.toFixed(2)}</p>
+          <p>Token: {sub.token}</p>
+          <SubscriptionCard token={sub.token} />
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+## 6. Refunds
+
+```tsx
+"use client";
+
+import { useRefund } from "@bazileros/payfast/react";
+
+function RefundButton({ ptxId }: { ptxId: string }) {
+  const { refund, loading, error } = useRefund();
+
+  return (
+    <div>
+      <button onClick={() => refund({ ptxId })} disabled={loading}>
+        {loading ? "Refunding..." : "Refund"}
+      </button>
+      {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+```
+
+:::caution[Sandbox limitation]
+Refunds are not available in sandbox mode. They only work with real PayFast transactions in production.
+:::
+
+## 7. Server-side usage in API routes
+
+Next.js API routes (Route Handlers) run on the server. You can use the `Payfast` class there for admin operations:
+
+```ts
+// app/api/refund/route.ts
+import { Payfast } from "@bazileros/payfast";
+import { components } from "@payfastt/backend/convex/_generated/api";
+import { ConvexHttpClient } from "convex/browser";
+import { NextRequest, NextResponse } from "next/server";
+
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+
+export async function POST(request: NextRequest) {
+  const { ptxId, amount } = await request.json();
+
+  const result = await convex.action(components.payfast.lib.refundTransaction, {
+    ptxId,
+    amount,
+  });
+
+  return NextResponse.json(result);
+}
+```
+
+For authenticated requests, pass the user identity:
+
+```ts
+// app/api/admin/action/route.ts
+import { ActionCtx } from "@payfastt/backend/convex/_generated/server";
+
+export async function POST(request: NextRequest) {
+  const authHeader = request.headers.get("authorization");
+  // Validate admin token, then execute:
+  const result = await convex.action(components.payfast.lib.cancelSubscription, {
+    token: "tok_123",
+  });
+}
+```
+
+## 8. Auth integration with getUserInfo
+
+When using NextAuth.js, Clerk, or any auth provider with Convex, wire up the `getUserInfo` callback to auto-resolve the `userId`:
+
+```ts
+// convex/auth.config.ts
+import { convexAuth } from "@convex-dev/auth/server";
+
+export const { auth, signIn, signOut, store } = convexAuth({
+  providers: [/* your providers */],
+});
+```
+
+Then in your Convex actions:
+
+```ts
+import { Payfast } from "@bazileros/payfast";
+import { components } from "./_generated/api";
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+export const pf = new Payfast(components.payfast, {
+  getUserInfo: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    return { userId };
+  },
+});
+```
+
+Now all PayFast calls inside authenticated actions resolve the user automatically:
+
+```ts
+export const pauseMySub = action({
+  handler: async (ctx) => {
+    // userId is auto-resolved from ctx
+    await pf.pauseSubscription(ctx, { token: "tok_123" });
+  },
+});
+```
+
+## 9. Env vars in Next.js
+
+Next.js has a specific environment variable convention:
+
+```
+# convex/.env.local (for npx convex dev)
+PAYFAST_MERCHANT_ID=12345678
+PAYFAST_MERCHANT_KEY=abc123abc123abc1
+PAYFAST_PASSPHRASE=your-secret-passphrase
+PAYFAST_SANDBOX=true
+NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:PORT
+```
+
+The `NEXT_PUBLIC_CONVEX_URL` is set automatically by `npx convex dev`. In production, set PayFast env vars via `npx convex env set` and the Convex URL via your hosting dashboard.
+
+:::note
+PayFast env vars (`PAYFAST_*`) are server-side only — never exposed to the browser. Only `NEXT_PUBLIC_CONVEX_URL` needs to be public.
+:::
+
+## 10. Error handling patterns
+
+### Checkout errors
+
+```tsx
+const { generateCheckout, error } = usePayfastCheckout({
+  amount: 100,
+  itemName: "Donation",
+  returnUrl,
+  cancelUrl,
+});
+
+// Display errors inline
+if (error) {
+  return (
+    <div role="alert" className="error-banner">
+      <p>Payment setup failed: {error}</p>
+      <button onClick={generateCheckout}>Retry</button>
+    </div>
+  );
+}
+```
+
+### Subscription action errors
+
+```tsx
+const { pause } = useSubscriptionActions(token);
+
+const handlePause = async () => {
+  try {
+    await pause();
+    // Show success toast
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to pause subscription";
+    // Show error toast
+    console.error("Pause failed:", err);
+  }
+};
+```
+
+## 11. Production checklist
+
+- [ ] Replace sandbox credentials with production ones
+- [ ] Set `PAYFAST_SANDBOX` to `false` (or remove the env var entirely)
+- [ ] Configure the PayFast Notify URL in your dashboard: `https://YOUR_PROJECT.convex.site/payfast/itn`
+- [ ] Set return/cancel URLs to real production URLs
+- [ ] Use `$` or your currency symbol in item descriptions (amounts are in ZAR)
+- [ ] Add error boundaries around payment components
+- [ ] Test the full flow in sandbox before going live
+- [ ] Verify ITN webhook delivery in PayFast dashboard → ITN history
+- [ ] Monitor `itnLogs` for `INVALID` or `ERROR` status records

@@ -1,0 +1,98 @@
+---
+import Default from "@astrojs/starlight/components/Footer.astro";
+---
+
+<Default>
+  <slot />
+  <div class="feedback" data-feedback>
+    <span class="feedback-prompt">Was this page helpful?</span>
+    <button class="feedback-btn feedback-btn--up" data-feedback-up aria-label="Yes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z" />
+        <polyline points="7 22 7 13" />
+      </svg>
+    </button>
+    <button class="feedback-btn feedback-btn--down" data-feedback-down aria-label="No">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+        <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z" />
+        <polyline points="17 2 17 11" />
+      </svg>
+    </button>
+    <span class="feedback-thanks" hidden>Thanks!</span>
+  </div>
+</Default>
+
+<script>
+  const container = document.querySelector("[data-feedback]");
+  if (container) {
+    const key = "pf-docs-feedback";
+    const stored = sessionStorage.getItem(key);
+    if (stored) {
+      container.querySelector("[data-feedback-up]")!.disabled = true;
+      container.querySelector("[data-feedback-down]")!.disabled = true;
+      container.querySelector(".feedback-thanks")!.hidden = false;
+      container.querySelector(".feedback-prompt")!.hidden = true;
+    } else {
+      container.querySelector("[data-feedback-up]")!.addEventListener("click", () => {
+        sessionStorage.setItem(key, "up");
+        container.querySelector("[data-feedback-up]")!.disabled = true;
+        container.querySelector("[data-feedback-down]")!.disabled = true;
+        container.querySelector(".feedback-thanks")!.hidden = false;
+        container.querySelector(".feedback-prompt")!.hidden = true;
+      });
+      container.querySelector("[data-feedback-down]")!.addEventListener("click", () => {
+        sessionStorage.setItem(key, "down");
+        container.querySelector("[data-feedback-up]")!.disabled = true;
+        container.querySelector("[data-feedback-down]")!.disabled = true;
+        container.querySelector(".feedback-thanks")!.hidden = false;
+        container.querySelector(".feedback-prompt")!.hidden = true;
+      });
+    }
+  }
+</script>
+
+<style is:global>
+  .feedback {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+    font-size: 0.8125rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  .feedback-prompt {
+    margin-right: 0.25rem;
+  }
+
+  .feedback-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--sl-color-gray-3);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .feedback-btn:hover {
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-accent);
+  }
+
+  .feedback-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .feedback-thanks {
+    color: var(--sl-color-accent);
+    font-weight: 500;
+  }
+</style>

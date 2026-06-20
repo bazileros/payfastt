@@ -11,6 +11,7 @@ import {
 } from "./_generated/server.js";
 import { md5 } from "./md5.js";
 import { asTransactionStatus } from "./statuses.js";
+import { callPayfastApi } from "./api.js";
 
 export const generateCheckoutForm = mutation({
 	args: {
@@ -39,6 +40,8 @@ export const generateCheckoutForm = mutation({
 		frequency: v.optional(v.number()),
 		cycles: v.optional(v.number()),
 		token: v.optional(v.string()),
+		paymentMethod: v.optional(v.string()),
+		setup: v.optional(v.string()),
 		userId: v.optional(v.string()),
 	},
 	handler: async (ctx, args) => {
@@ -96,6 +99,9 @@ export const generateCheckoutForm = mutation({
 		}
 
 		if (args.token) fields.token = args.token;
+
+		if (args.paymentMethod) fields.payment_method = args.paymentMethod;
+		if (args.setup) fields.setup = args.setup;
 
 		const signature = generateSignature(fields, PAYFAST_PASSPHRASE);
 		fields.signature = signature;
@@ -241,24 +247,6 @@ export const getUserProfile = query({
 	},
 });
 
-function buildRESTHeaders(
-	body: string,
-	merchantId: string,
-	merchantKey: string,
-	passphrase: string,
-): Record<string, string> {
-	const timestamp = new Date().toISOString();
-	const data = `${merchantId}${merchantKey}${timestamp}${body}${passphrase}`;
-	const signature = md5(data);
-	return {
-		"Content-Type": "application/x-www-form-urlencoded",
-		"x-payfast-merchant-id": merchantId,
-		"x-payfast-timestamp": timestamp,
-		"x-payfast-signature": signature,
-		"x-payfast-version": "v1",
-	};
-}
-
 export const _getSubscriptionByToken = internalQuery({
 	args: { token: v.string() },
 	handler: async (ctx, args) => {
@@ -299,50 +287,36 @@ async function callSubscriptionApi(
 	ctx: any,
 	token: string,
 	action: string,
-	opts?: { body?: string; userId?: string },
+	opts?: { bodyFields?: Record<string, string>; userId?: string },
 ): Promise<{ success: boolean }> {
 	const sub = await ctx.runQuery(internal.lib._getSubscriptionByToken, {
 		token,
 	});
 	if (!sub) throw new Error(`Subscription not found: ${token}`);
 
-	const {
-		PAYFAST_SANDBOX,
-		PAYFAST_MERCHANT_ID,
-		PAYFAST_MERCHANT_KEY,
-		PAYFAST_PASSPHRASE,
-	} = ctx.env as Env;
-	const host =
-		PAYFAST_SANDBOX === "true" ? "sandbox.payfast.co.za" : "api.payfast.co.za";
-	const url = `https://${host}/subscriptions/${encodeURIComponent(token)}/${action}`;
-	const body = opts?.body ?? "";
+	const env = ctx.env as Env;
+	const path = `/subscriptions/${encodeURIComponent(token)}/${action}`;
 
-	const response = await fetch(url, {
-		method: "PUT",
-		headers: buildRESTHeaders(
-			body,
-			PAYFAST_MERCHANT_ID,
-			PAYFAST_MERCHANT_KEY,
-			PAYFAST_PASSPHRASE,
-		),
-		...(body ? { body } : {}),
+	const result = await callPayfastApi("PUT", path, env, {
+		bodyFields: opts?.bodyFields,
 	});
-	const responseBody = await response.text();
 
 	await ctx.runMutation(internal.lib._addRecurringLog, {
 		action,
 		pfToken: token,
 		token,
-		status: response.ok ? "success" : "error",
-		requestBody: body,
-		responseBody,
-		errorMessage: response.ok ? undefined : `HTTP ${response.status}`,
+		status: result.ok ? "success" : "error",
+		requestBody: opts?.bodyFields
+			? new URLSearchParams(opts.bodyFields).toString()
+			: "",
+		responseBody: result.body,
+		errorMessage: result.ok ? undefined : `HTTP ${result.status}`,
 		userId: opts?.userId,
 	});
 
-	if (!response.ok) {
+	if (!result.ok) {
 		throw new Error(
-			`Failed to ${action} subscription: ${response.status} ${responseBody}`,
+			`Failed to ${action} subscription: ${result.status} ${result.body}`,
 		);
 	}
 
@@ -386,17 +360,319 @@ export const updateSubscription = action({
 		userId: v.optional(v.string()),
 	},
 	handler: async (ctx, args) => {
-		const bodyParts: string[] = [];
+		const bodyFields: Record<string, string> = {};
 		if (args.amount !== undefined)
-			bodyParts.push(`amount=${args.amount.toFixed(2)}`);
-		if (args.cycles !== undefined) bodyParts.push(`cycles=${args.cycles}`);
+			bodyFields.amount = args.amount.toFixed(2);
+		if (args.cycles !== undefined) bodyFields.cycles = String(args.cycles);
 		if (args.frequency !== undefined)
-			bodyParts.push(`frequency=${args.frequency}`);
-		if (args.runDate) bodyParts.push(`run_date=${args.runDate}`);
+			bodyFields.frequency = String(args.frequency);
+		if (args.runDate) bodyFields.run_date = args.runDate;
 		return await callSubscriptionApi(ctx, args.token, "update", {
-			body: bodyParts.join("&"),
+			bodyFields,
 			userId: args.userId,
 		});
+	},
+});
+
+export const chargeSubscriptionAdhoc = action({
+	args: {
+		token: v.string(),
+		amount: v.number(),
+		itemName: v.optional(v.string()),
+		itemDescription: v.optional(v.string()),
+		itn: v.optional(v.boolean()),
+		mPaymentId: v.optional(v.string()),
+		userId: v.optional(v.string()),
+	},
+	// biome-ignore lint/suspicious/noExplicitAny: action ctx lacks env
+	handler: async (ctx: any, args) => {
+		const env = ctx.env as Env;
+
+		if (env.PAYFAST_SANDBOX === "true") {
+			throw new Error("Adhoc charges are not available in sandbox mode");
+		}
+
+		const bodyFields: Record<string, string> = {
+			amount: String(Math.round(args.amount * 100)),
+		};
+		if (args.itemName) bodyFields.item_name = args.itemName;
+		if (args.itemDescription)
+			bodyFields.item_description = args.itemDescription;
+		if (args.itn !== undefined) bodyFields.itn = args.itn ? "true" : "false";
+		if (args.mPaymentId) bodyFields.m_payment_id = args.mPaymentId;
+
+		const path = `/subscriptions/${encodeURIComponent(args.token)}/adhoc`;
+		const result = await callPayfastApi("POST", path, env, {
+			bodyFields,
+		});
+
+		await ctx.runMutation(internal.lib._addRecurringLog, {
+			action: "charge_adhoc",
+			pfToken: args.token,
+			token: args.token,
+			status: result.ok ? "success" : "error",
+			requestBody: new URLSearchParams(bodyFields).toString(),
+			responseBody: result.body,
+			errorMessage: result.ok ? undefined : `HTTP ${result.status}`,
+			userId: args.userId,
+		});
+
+		if (!result.ok) {
+			throw new Error(`Adhoc charge failed: ${result.status} ${result.body}`);
+		}
+
+		return { success: true, response: result.body };
+	},
+});
+
+export const refundTransaction = action({
+	args: {
+		ptxId: v.string(),
+		amount: v.optional(v.number()),
+		userId: v.optional(v.string()),
+	},
+	// biome-ignore lint/suspicious/noExplicitAny: action ctx lacks env
+	handler: async (ctx: any, args) => {
+		const env = ctx.env as Env;
+
+		if (env.PAYFAST_SANDBOX === "true") {
+			throw new Error("Refunds are not available in sandbox mode");
+		}
+
+		const bodyFields: Record<string, string> = {
+			ptx_id: args.ptxId,
+		};
+		if (args.amount !== undefined) {
+			bodyFields.amount = args.amount.toFixed(2);
+		}
+
+		const result = await callPayfastApi("POST", "/refunds", env, {
+			bodyFields,
+		});
+
+		if (!result.ok) {
+			throw new Error(`Refund failed: ${result.status} ${result.body}`);
+		}
+
+		return { success: true, response: result.body };
+	},
+});
+
+export const queryTransactions = action({
+	args: {
+		offset: v.optional(v.number()),
+	},
+	// biome-ignore lint/suspicious/noExplicitAny: action ctx lacks env
+	handler: async (ctx: any, args) => {
+		const env = ctx.env as Env;
+		let path = "/transactions";
+		if (args.offset !== undefined) {
+			path += `?offset=${args.offset}`;
+		}
+		const result = await callPayfastApi("GET", path, env);
+
+		if (!result.ok) {
+			throw new Error(
+				`Transaction history query failed: ${result.status} ${result.body}`,
+			);
+		}
+
+		return JSON.parse(result.body);
+	},
+});
+
+export const queryCreditCards = action({
+	args: {},
+	// biome-ignore lint/suspicious/noExplicitAny: action ctx lacks env
+	handler: async (ctx: any) => {
+		const env = ctx.env as Env;
+		const result = await callPayfastApi("GET", "/credit-cards", env);
+
+		if (!result.ok) {
+			throw new Error(
+				`Credit card query failed: ${result.status} ${result.body}`,
+			);
+		}
+
+		return JSON.parse(result.body);
+	},
+});
+
+export const _insertTransaction = internalMutation({
+	args: {
+		amount: v.number(),
+		itemName: v.string(),
+		itemDescription: v.optional(v.string()),
+		mPaymentId: v.optional(v.string()),
+		status: v.string(),
+		signature: v.string(),
+		userId: v.optional(v.string()),
+	},
+	// biome-ignore lint/suspicious/noExplicitAny: internal mutation ctx
+	handler: async (ctx: any, args) => {
+		return ctx.db.insert("transactions", args) as Promise<string>;
+	},
+});
+
+export const generateOnsitePaymentIdentifier = action({
+	args: {
+		amount: v.number(),
+		itemName: v.string(),
+		itemDescription: v.optional(v.string()),
+		mPaymentId: v.optional(v.string()),
+		returnUrl: v.optional(v.string()),
+		cancelUrl: v.optional(v.string()),
+		notifyUrl: v.optional(v.string()),
+		customInt1: v.optional(v.number()),
+		customInt2: v.optional(v.number()),
+		customInt3: v.optional(v.number()),
+		customInt4: v.optional(v.number()),
+		customInt5: v.optional(v.number()),
+		customStr1: v.optional(v.string()),
+		customStr2: v.optional(v.string()),
+		customStr3: v.optional(v.string()),
+		customStr4: v.optional(v.string()),
+		customStr5: v.optional(v.string()),
+		emailConfirmation: v.optional(v.boolean()),
+		confirmationAddress: v.optional(v.string()),
+		paymentMethod: v.optional(v.string()),
+		setup: v.optional(v.string()),
+		userId: v.optional(v.string()),
+	},
+	// biome-ignore lint/suspicious/noExplicitAny: action ctx lacks env
+	handler: async (
+		ctx: any,
+		args: {
+			amount: number;
+			itemName: string;
+			itemDescription?: string;
+			mPaymentId?: string;
+			returnUrl?: string;
+			cancelUrl?: string;
+			notifyUrl?: string;
+			customInt1?: number;
+			customInt2?: number;
+			customInt3?: number;
+			customInt4?: number;
+			customInt5?: number;
+			customStr1?: string;
+			customStr2?: string;
+			customStr3?: string;
+			customStr4?: string;
+			customStr5?: string;
+			emailConfirmation?: boolean;
+			confirmationAddress?: string;
+			paymentMethod?: string;
+			setup?: string;
+			userId?: string;
+		},
+	): Promise<{
+		paymentIdentifier: string;
+		signature: string;
+		transactionId: string;
+	}> => {
+		const {
+			PAYFAST_MERCHANT_ID,
+			PAYFAST_MERCHANT_KEY,
+			PAYFAST_PASSPHRASE,
+			PAYFAST_SANDBOX,
+		} = ctx.env as Env;
+
+		if (PAYFAST_SANDBOX === "true") {
+			throw new Error(
+				"Onsite payments are not available in sandbox mode",
+			);
+		}
+
+		const host = "www.payfast.co.za";
+		const url = `https://${host}/onsite/process`;
+
+		const fields: Record<string, string> = {
+			merchant_id: PAYFAST_MERCHANT_ID,
+			merchant_key: PAYFAST_MERCHANT_KEY,
+			amount: args.amount.toFixed(2),
+			item_name: args.itemName,
+		};
+
+		if (args.itemDescription)
+			fields.item_description = args.itemDescription;
+		if (args.mPaymentId) fields.m_payment_id = args.mPaymentId;
+		if (args.returnUrl) fields.return_url = args.returnUrl;
+		if (args.cancelUrl) fields.cancel_url = args.cancelUrl;
+		if (args.notifyUrl) fields.notify_url = args.notifyUrl;
+		if (args.emailConfirmation) fields.email_confirmation = "1";
+		if (args.confirmationAddress)
+			fields.confirmation_address = args.confirmationAddress;
+		if (args.customInt1 !== undefined)
+			fields.custom_int1 = String(args.customInt1);
+		if (args.customInt2 !== undefined)
+			fields.custom_int2 = String(args.customInt2);
+		if (args.customInt3 !== undefined)
+			fields.custom_int3 = String(args.customInt3);
+		if (args.customInt4 !== undefined)
+			fields.custom_int4 = String(args.customInt4);
+		if (args.customInt5 !== undefined)
+			fields.custom_int5 = String(args.customInt5);
+		if (args.customStr1) fields.custom_str1 = args.customStr1;
+		if (args.customStr2) fields.custom_str2 = args.customStr2;
+		if (args.customStr3) fields.custom_str3 = args.customStr3;
+		if (args.customStr4) fields.custom_str4 = args.customStr4;
+		if (args.customStr5) fields.custom_str5 = args.customStr5;
+		if (args.paymentMethod) fields.payment_method = args.paymentMethod;
+		if (args.setup) fields.setup = args.setup;
+
+		const signature = generateSignature(fields, PAYFAST_PASSPHRASE);
+		fields.signature = signature;
+
+		const body = new URLSearchParams(fields).toString();
+		const response = await fetch(url, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
+			body,
+		});
+
+		const responseText = await response.text();
+
+		if (!response.ok) {
+			throw new Error(
+				`Onsite payment identifier request failed: ${response.status} ${responseText}`,
+			);
+		}
+
+		let paymentIdentifier: string | null = null;
+		try {
+			const parsed = JSON.parse(responseText);
+			paymentIdentifier = parsed.paymentIdentifier ?? null;
+		} catch {
+			paymentIdentifier = responseText.trim() || null;
+		}
+
+		if (!paymentIdentifier) {
+			throw new Error(
+				`No payment identifier returned: ${responseText}`,
+			);
+		}
+
+		const transactionId = (await ctx.runMutation(
+			internal.lib._insertTransaction,
+			{
+				amount: args.amount,
+				itemName: args.itemName,
+				itemDescription: args.itemDescription,
+				mPaymentId: args.mPaymentId,
+				status: "PENDING",
+				signature,
+				userId: args.userId,
+			},
+		)) as string;
+
+		return {
+			paymentIdentifier,
+			signature,
+			transactionId,
+		};
 	},
 });
 
@@ -412,12 +688,7 @@ async function handleITN(
 	ctx: any,
 	pfData: Record<string, string>,
 ) {
-	const {
-		PAYFAST_SANDBOX,
-		PAYFAST_MERCHANT_ID,
-		PAYFAST_MERCHANT_KEY,
-		PAYFAST_PASSPHRASE,
-	} = ctx.env as Env;
+	const { PAYFAST_SANDBOX } = ctx.env as Env;
 	const host =
 		PAYFAST_SANDBOX === "true" ? "sandbox.payfast.co.za" : "www.payfast.co.za";
 	const url = `https://${host}/eng/query/validate`;
@@ -466,32 +737,19 @@ async function handleITN(
 	}
 
 	if (transaction && pfToken) {
-		const billingBody = `amount=${transaction.amount.toFixed(2)}`;
-		const result = await fetch(
-			`https://${host}/subscriptions/${encodeURIComponent(pfToken)}/adhoc`,
-			{
-				method: "POST",
-				headers: {
-					...buildRESTHeaders(
-						billingBody,
-						PAYFAST_MERCHANT_ID,
-						PAYFAST_MERCHANT_KEY,
-						PAYFAST_PASSPHRASE,
-					),
-					"Content-Type": "application/x-www-form-urlencoded",
-					"x-payfast-subscription-type": "1",
-				},
-				body: billingBody,
-			},
-		);
-		const resultBody = await result.text();
+		const env = ctx.env as Env;
+		const path = `/subscriptions/${encodeURIComponent(pfToken)}/adhoc`;
+		const result = await callPayfastApi("POST", path, env, {
+			bodyFields: { amount: transaction.amount.toFixed(2) },
+			extraHeaders: { "x-payfast-subscription-type": "1" },
+		});
 		await ctx.db.insert("recurringLogs", {
 			action: "charge_adhoc",
 			pfToken,
 			token: pfData.token || pfToken,
 			status: result.ok ? "success" : "error",
-			requestBody: billingBody,
-			responseBody: resultBody,
+			requestBody: `amount=${transaction.amount.toFixed(2)}`,
+			responseBody: result.body,
 			errorMessage: result.ok ? undefined : `HTTP ${result.status}`,
 		});
 	}

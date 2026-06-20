@@ -1,0 +1,594 @@
+---
+title: TanStack Start
+description: Integrate @bazileros/payfast with TanStack Start (full-stack React framework)
+icon: brand-react
+sidebar:
+  order: 4
+---
+
+TanStack Start is a full-stack React framework built on TanStack Router with SSR, server functions, and middleware. This guide covers integrating the PayFast Convex component, using server functions for secure checkout generation, and managing subscriptions via server-side operations.
+
+## Project setup
+
+```bash
+npm create @tanstack/react-start@latest my-app
+cd my-app
+npm install convex @bazileros/payfast
+npx convex dev
+```
+
+### Project structure
+
+```
+src/
+├── routes/
+│   ├── __root.tsx         # Root layout + providers
+│   ├── index.tsx          # Home page
+│   ├── checkout.tsx       # Checkout page
+│   ├── transactions.tsx   # Transactions list
+│   └── subscriptions.tsx  # Subscriptions management
+├── lib/
+│   ├── payfast.functions.ts  # Server functions for PayFast
+│   └── convex.ts             # Convex client setup
+├── client.tsx             # Client entry (hydration)
+├── ssr.tsx                # SSR entry
+├── router.tsx             # Router config
+└── start.ts               # Server instance + middleware
+app.config.ts              # TanStack Start config
+```
+
+## 1. Convex configuration
+
+Backend config in `convex/convex.config.ts`:
+
+```ts
+import { defineApp } from "convex/server";
+import payfast from "@bazileros/payfast/convex.config";
+
+const app = defineApp();
+app.use(payfast);
+export default app;
+```
+
+HTTP router in `convex/http.ts`:
+
+```ts
+import { httpRouter } from "convex/server";
+import { components } from "./_generated/api";
+import { registerRoutes } from "@bazileros/payfast/http";
+
+const http = httpRouter();
+
+registerRoutes(http, components.payfast, {
+  events: {
+    onPaymentComplete: async (ctx, pfData) => {
+      await ctx.runMutation(api.myMutations.grantAccess, {
+        pfPaymentId: pfData.pf_payment_id,
+        amount: pfData.amount_gross,
+      });
+    },
+    onSubscriptionCancelled: async (ctx, pfData) => {
+      await ctx.runMutation(api.myMutations.revokeAccess, {
+        token: pfData.token,
+      });
+    },
+  },
+});
+
+export default http;
+```
+
+Set environment variables:
+
+```bash
+npx convex env set PAYFAST_MERCHANT_ID 12345678
+npx convex env set PAYFAST_MERCHANT_KEY abc123abc123abc1
+npx convex env set PAYFAST_PASSPHRASE your-secret-passphrase
+npx convex env set PAYFAST_SANDBOX true
+```
+
+## 2. Router config + Convex provider
+
+The router config lives in `src/router.tsx`. Create the Convex client here and pass it via router context so routes can access it if needed:
+
+```tsx
+// src/router.tsx
+import { createRouter as createTanStackRouter } from "@tanstack/react-router";
+import { ConvexReactClient } from "convex/react";
+import { routeTree } from "./routeTree.gen";
+
+export const convex = new ConvexReactClient(
+  import.meta.env.VITE_CONVEX_URL!,
+);
+
+export function createRouter() {
+  return createTanStackRouter({
+    routeTree,
+    defaultPreload: "intent",
+    scrollRestoration: true,
+    context: { convex },
+    Wrap: function Wrap({ children }: { children: React.ReactNode }) {
+      return children;
+    },
+  });
+}
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: ReturnType<typeof createRouter>;
+  }
+}
+```
+
+## 3. Root route with PayfastProvider
+
+Mount both `ConvexProvider` and `PayfastProvider` in the root layout. This wraps every page with shared context:
+
+```tsx
+// src/routes/__root.tsx
+import { components } from "../../convex/_generated/api";
+import { PayfastProvider } from "@bazileros/payfast/react";
+import { ConvexProvider } from "convex/react";
+import type { ReactNode } from "react";
+import {
+  Outlet,
+  createRootRoute,
+  HeadContent,
+  Scripts,
+} from "@tanstack/react-router";
+import { convex } from "../router";
+
+export const Route = createRootRoute({
+  component: RootComponent,
+  head: () => ({
+    meta: [
+      { charSet: "utf-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "My App" },
+    ],
+  }),
+});
+
+function RootDocument({ children }: { children: ReactNode }) {
+  return (
+    <html>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <ConvexProvider client={convex}>
+          <PayfastProvider component={components.payfast}>
+            {children}
+          </PayfastProvider>
+        </ConvexProvider>
+        <Scripts />
+      </body>
+    </html>
+  );
+}
+
+function RootComponent() {
+  return (
+    <RootDocument>
+      <Outlet />
+    </RootDocument>
+  );
+}
+```
+
+:::caution[Provider placement]
+`ConvexProvider` and `PayfastProvider` must be above `<Scripts />` in the DOM tree. If you wrap `<Scripts />` inside the providers, hydration works correctly on page load.
+:::
+
+## 4. Server functions for PayFast
+
+TanStack Start server functions are the secure way to call Convex actions from the client. The `@bazileros/payfast` React hooks (`usePayfastCheckout`, `useRefund`, `useAdhocCharge`, `useSubscriptionActions`) already use Convex actions under the hood — they work directly inside the `PayfastProvider` context.
+
+But for operations where you want to bypass the hooks and call PayFast directly from a server function (e.g., during SSR, in route loaders, or with custom logic), use the `Payfast` class inside a server function:
+
+```tsx
+// src/lib/payfast.functions.ts
+import { Payfast } from "@bazileros/payfast";
+import { components } from "../../convex/_generated/api";
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+
+export const createCheckout = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      amount: z.number(),
+      itemName: z.string(),
+      returnUrl: z.string(),
+      cancelUrl: z.string(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    // Import ConvexHttpClient server-side
+    const { ConvexHttpClient } = await import("convex/browser");
+    const client = new ConvexHttpClient(process.env.VITE_CONVEX_URL!);
+
+    const result = await client.action(components.payfast.lib.createCheckoutSession, {
+      amount: data.amount,
+      itemName: data.itemName,
+      returnUrl: data.returnUrl,
+      cancelUrl: data.cancelUrl,
+    });
+
+    return result;
+  });
+```
+
+:::tip[Server functions vs Convex hooks]
+For most UI interactions, use the React hooks directly (`usePayfastCheckout`, `useTransactions`, etc.) — they are simpler and handle reactive data automatically. Use server functions when you need to call PayFast from a route loader, during SSR, or from a non-React context.
+:::
+
+## 5. Checkout page
+
+Use `usePayfastCheckout` with the context-based pattern (no component arg needed since `PayfastProvider` is in the root):
+
+```tsx
+// src/routes/checkout.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import { usePayfastCheckout } from "@bazileros/payfast/react";
+import { useEffect, useRef } from "react";
+
+export const Route = createFileRoute("/checkout")({
+  component: CheckoutPage,
+});
+
+function CheckoutPage() {
+  const {
+    generateCheckout,
+    formActionUrl,
+    formFields,
+    loading,
+    error,
+  } = usePayfastCheckout({
+    amount: 100,
+    itemName: "Donation",
+    returnUrl: `${window.location.origin}/transactions`,
+    cancelUrl: `${window.location.origin}/checkout`,
+  });
+
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (formActionUrl && formFields && formRef.current) {
+      formRef.current.submit();
+    }
+  }, [formActionUrl, formFields]);
+
+  if (error) {
+    return (
+      <div role="alert">
+        <p>Checkout error: {error}</p>
+        <button onClick={generateCheckout}>Retry</button>
+      </div>
+    );
+  }
+
+  if (formActionUrl) {
+    return (
+      <form ref={formRef} action={formActionUrl} method="POST" className="hidden">
+        {Object.entries(formFields!).map(([key, value]) => (
+          <input key={key} type="hidden" name={key} value={value} />
+        ))}
+      </form>
+    );
+  }
+
+  return (
+    <div>
+      <h1>Checkout</h1>
+      <button onClick={generateCheckout} disabled={loading}>
+        {loading ? "Generating..." : "Pay R100"}
+      </button>
+    </div>
+  );
+}
+```
+
+### Subscription checkout
+
+```tsx
+const { generateCheckout } = usePayfastCheckout({
+  amount: 50,
+  itemName: "Monthly Membership",
+  subscriptionType: 1,
+  recurringAmount: 50,
+  frequency: 1,
+  cycles: 12,
+  returnUrl: `${window.location.origin}/subscriptions`,
+  cancelUrl: `${window.location.origin}/checkout`,
+});
+```
+
+## 6. Transactions page
+
+```tsx
+// src/routes/transactions.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import { useTransactions } from "@bazileros/payfast/react";
+
+export const Route = createFileRoute("/transactions")({
+  component: TransactionsPage,
+  pendingComponent: () => <p>Loading...</p>,
+});
+
+function TransactionsPage() {
+  const transactions = useTransactions();
+
+  if (transactions === undefined) {
+    return <p>Loading transactions...</p>;
+  }
+
+  if (transactions.length === 0) {
+    return <p>No transactions yet.</p>;
+  }
+
+  return (
+    <div>
+      <h1>Transactions</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {transactions.map((tx) => (
+            <tr key={tx._id}>
+              <td>{tx.itemName}</td>
+              <td>R{tx.amount.toFixed(2)}</td>
+              <td>
+                <span className={`badge ${tx.status.toLowerCase()}`}>
+                  {tx.status}
+                </span>
+              </td>
+              <td>{new Date(tx._creationTime).toLocaleDateString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+```
+
+### Loading states with TanStack Start
+
+TanStack Start provides `pendingComponent` and `pendingMinMs` for route-level loading states:
+
+```tsx
+export const Route = createFileRoute("/transactions")({
+  component: TransactionsPage,
+  pendingComponent: TransactionsSkeleton,
+  pendingMinMs: 300,
+});
+
+function TransactionsSkeleton() {
+  return <div className="skeleton">Loading transactions...</div>;
+}
+```
+
+## 7. Subscriptions page with management
+
+```tsx
+// src/routes/subscriptions.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import {
+  useSubscriptions,
+  useSubscriptionActions,
+  useAdhocCharge,
+} from "@bazileros/payfast/react";
+import { useState } from "react";
+
+export const Route = createFileRoute("/subscriptions")({
+  component: SubscriptionsPage,
+});
+
+function SubscriptionActions({ token }: { token: string }) {
+  const { pause, unpause, cancel } = useSubscriptionActions(token);
+  const { charge, loading: charging } = useAdhocCharge();
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const handle = async (
+    fn: () => Promise<void>,
+    label: string,
+  ) => {
+    setActionLoading(label);
+    setActionError(null);
+    try {
+      await fn();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  return (
+    <div>
+      {actionError && <p className="error">{actionError}</p>}
+      <button
+        onClick={() => handle(pause, "pausing")}
+        disabled={actionLoading !== null}
+      >
+        {actionLoading === "pausing" ? "..." : "Pause"}
+      </button>
+      <button
+        onClick={() => handle(unpause, "unpausing")}
+        disabled={actionLoading !== null}
+      >
+        {actionLoading === "unpausing" ? "..." : "Resume"}
+      </button>
+      <button
+        onClick={() => handle(cancel, "cancelling")}
+        disabled={actionLoading !== null}
+      >
+        {actionLoading === "cancelling" ? "..." : "Cancel"}
+      </button>
+      <button
+        onClick={() => handle(() => charge({ token, amount: 5000 }), "charging")}
+        disabled={actionLoading !== null}
+      >
+        {charging ? "..." : "Charge R50"}
+      </button>
+    </div>
+  );
+}
+
+function SubscriptionsPage() {
+  const subscriptions = useSubscriptions();
+
+  return (
+    <div>
+      <h1>Subscriptions</h1>
+      {subscriptions === undefined ? (
+        <p>Loading...</p>
+      ) : subscriptions.length === 0 ? (
+        <p>No subscriptions yet.</p>
+      ) : (
+        subscriptions.map((sub) => (
+          <div key={sub._id} className="card">
+            <h3>{sub.itemName}</h3>
+            <p>Status: {sub.status} | Amount: R{sub.amount?.toFixed(2)}</p>
+            <p>Token: {sub.token}</p>
+            <SubscriptionActions token={sub.token} />
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+```
+
+## 8. Refunds
+
+```tsx
+import { useRefund } from "@bazileros/payfast/react";
+
+function RefundButton({ ptxId }: { ptxId: string }) {
+  const { refund, loading, error } = useRefund();
+
+  return (
+    <div>
+      <button onClick={() => refund({ ptxId })} disabled={loading}>
+        {loading ? "Refunding..." : "Process Refund"}
+      </button>
+      {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+```
+
+## 9. Auth middleware with TanStack Start
+
+When using Convex auth, wire up the `getUserInfo` callback for automatic user resolution. This is done inside a Convex action, not at the TanStack Start level:
+
+```ts
+// convex/lib/payfast.ts
+import { Payfast } from "@bazileros/payfast";
+import { components } from "./_generated/api";
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+export const pf = new Payfast(components.payfast, {
+  getUserInfo: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    return { userId };
+  },
+});
+```
+
+For protecting routes in TanStack Start (before the user reaches a page that shows PayFast data), use TanStack Router's `beforeLoad`:
+
+```tsx
+// src/routes/subscriptions.tsx
+import { redirect } from "@tanstack/react-router";
+
+export const Route = createFileRoute("/subscriptions")({
+  beforeLoad: async ({ context }) => {
+    // Optionally check auth status via server function
+    // const session = await getSession();
+    // if (!session) throw redirect({ to: "/login" });
+  },
+  component: SubscriptionsPage,
+});
+```
+
+## 10. Environment variables
+
+PayFast credentials live in Convex (`npx convex env set`) — never in your TanStack Start app config. Only `VITE_CONVEX_URL` needs to be accessible to the client:
+
+```ts
+// app.config.ts
+import { defineConfig } from "@tanstack/react-start/config";
+
+export default defineConfig({
+  server: {
+    preset: "node-server",        // or "vercel", "cloudflare-pages", etc.
+  },
+});
+```
+
+```
+# .env (gitignored)
+VITE_CONVEX_URL=http://127.0.0.1:PORT
+```
+
+In production, set `VITE_CONVEX_URL` in your deployment environment. Use a server-only env function to validate it at startup:
+
+```tsx
+// src/lib/env.server.ts
+import { z } from "zod";
+
+const envSchema = z.object({
+  VITE_CONVEX_URL: z.string().url(),
+});
+
+export const env = envSchema.parse(process.env);
+```
+
+## 11. SSR considerations
+
+TanStack Start renders React on the server. Convex hooks (`useQuery`, `useMutation`, `useAction`) and `@bazileros/payfast` hooks only run on the client — they are no-ops during SSR. This means:
+
+1. **Checkout page**: The `usePayfastCheckout` hook needs a browser environment for `window.location.origin`. Use SSR-safe code by checking `typeof window !== "undefined"` or relying on the hook's own SSR guards.
+
+2. **Transaction/subscription pages**: These render with `undefined` during SSR, then hydrate with real data client-side. Use `pendingComponent` for loading skeletons.
+
+3. **No data in SSR**: Convex data is fetched reactively on the client. Pages show skeleton/loading state during SSR, then populate after hydration.
+
+```tsx
+// Safe SSR — hooks handle this automatically
+function CheckoutPage() {
+  // usePayfastCheckout accesses window.location.origin
+  // It must be inside a useEffect or guarded against SSR
+  // The hook handles this — it only generates on user click
+  const { generateCheckout } = usePayfastCheckout({
+    amount: 100,
+    itemName: "Donation",
+    returnUrl: "/transactions",     // relative URL is SSR-safe
+    cancelUrl: "/checkout",
+  });
+}
+```
+
+For return/cancel URLs, use relative paths or construct them only in event handlers (which run client-side). Avoid reading `window` during render.
+
+## 12. Production checklist
+
+- [ ] Set `VITE_CONVEX_URL` in production build environment
+- [ ] Set PayFast production credentials via `npx convex env set`
+- [ ] Remove `PAYFAST_SANDBOX=true` for real payments
+- [ ] Configure PayFast Notify URL: `https://YOUR_PROJECT.convex.site/payfast/itn`
+- [ ] Configure deployment adapter in `app.config.ts` (`vercel`, `cloudflare-pages`, `node-server`, etc.)
+- [ ] Add `pendingComponent` and `errorComponent` to every route
+- [ ] Test sandbox flow end-to-end before switching to production
+- [ ] Verify hydration — no "Text content did not match" warnings in console
+- [ ] Monitor ITN delivery in PayFast dashboard → ITN history

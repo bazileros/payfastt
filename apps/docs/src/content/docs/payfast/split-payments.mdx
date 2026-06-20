@@ -1,0 +1,196 @@
+---
+title: Split Payments
+description: Split transactions across multiple receivers using PayFast's split payment feature
+icon: sharing
+---
+
+PayFast's split payment feature splits a single transaction into multiple payouts to different receivers. Use this for marketplace scenarios, platform fees, or any situation where funds need to be distributed.
+
+The component supports split payments through the `setup` field -- a JSON string passthrough that is included in the signed checkout form or API request without modification.
+
+## How it works
+
+1. You configure split payment details as a JSON object
+2. Pass the JSON string via the `setup` field in checkout args
+3. The component includes `setup` in the signed form fields sent to PayFast
+4. PayFast parses the JSON and routes payouts to each receiver
+
+All standard PayFast split payment fields are supported:
+
+| Field | Type | Description |
+|---|---|---|
+| `split_payment` | `string` | Must be `"true"` to enable split payment |
+| `split_merchant_id` | `string` | Receiver's PayFast merchant ID |
+| `split_amount` | `string` | Amount for the receiver (in ZAR) |
+| `split_table` | `string` | Multi-receiver split configuration (JSON) |
+| `split_passphrase` | `string` | Receiver's passphrase for validation |
+
+## React: `usePayfastCheckout`
+
+```tsx
+import { usePayfastCheckout } from "@bazileros/payfast/react";
+import { components } from "../convex/_generated/api";
+
+function MarketplaceCheckout() {
+  const {
+    generateCheckout,
+    formActionUrl,
+    formFields,
+    loading,
+    error,
+  } = usePayfastCheckout(components.payfast, {
+    amount: 100,
+    itemName: "Marketplace item",
+    returnUrl: window.location.origin + "/thanks",
+    cancelUrl: window.location.origin + "/checkout",
+    setup: JSON.stringify({
+      split_payment: "true",
+      split_merchant_id: "10012345",
+      split_amount: "80",
+    }),
+  });
+
+  return (
+    <div>
+      <button onClick={generateCheckout} disabled={loading}>
+        {loading ? "Generating..." : "Pay R100"}
+      </button>
+      {formActionUrl && formFields && (
+        <form
+          action={formActionUrl}
+          method="POST"
+          ref={(ref) => ref?.submit()}
+          style={{ display: "none" }}
+        >
+          {Object.entries(formFields).map(([k, v]) => (
+            <input key={k} type="hidden" name={k} value={v} />
+          ))}
+        </form>
+      )}
+      {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+```
+
+## With context provider
+
+```tsx
+import { usePayfastCheckout } from "@bazileros/payfast/react";
+
+function MarketplaceCheckout() {
+  const { generateCheckout, loading } = usePayfastCheckout({
+    amount: 100,
+    itemName: "Marketplace item",
+    setup: JSON.stringify({
+      split_payment: "true",
+      split_merchant_id: "10012345",
+      split_amount: "80",
+    }),
+  });
+  // ...
+}
+```
+
+## Server-side: `Payfast.createCheckoutSession`
+
+```ts
+import { Payfast } from "@bazileros/payfast";
+import { components } from "./_generated/api";
+
+const pf = new Payfast(components.payfast, { sandbox: true });
+
+export const createSplitCheckout = action({
+  handler: async (ctx) => {
+    const session = await pf.createCheckoutSession(ctx, {
+      amount: 100,
+      itemName: "Marketplace item",
+      returnUrl: "https://example.com/thanks",
+      setup: JSON.stringify({
+        split_payment: "true",
+        split_merchant_id: "10012345",
+        split_amount: "80",
+      }),
+    });
+    // session.formActionUrl, session.formFields
+  },
+});
+```
+
+## Onsite payments with split
+
+```tsx
+import { usePayfastOnsite } from "@bazileros/payfast/react";
+
+function OnsiteSplitCheckout() {
+  const { generateOnsite, paymentIdentifier, loading } =
+    usePayfastOnsite({
+      amount: 100,
+      itemName: "Marketplace item",
+      returnUrl: window.location.origin + "/thanks",
+      cancelUrl: window.location.origin + "/checkout",
+      setup: JSON.stringify({
+        split_payment: "true",
+        split_merchant_id: "10012345",
+        split_amount: "80",
+      }),
+    });
+  // Pass paymentIdentifier to engine.js
+}
+```
+
+## Subscription with split
+
+```tsx
+const { generateCheckout } = usePayfastCheckout(components.payfast, {
+  amount: 50,
+  itemName: "Monthly subscription",
+  subscriptionType: 1,
+  recurringAmount: 50,
+  frequency: 1,
+  cycles: 12,
+  setup: JSON.stringify({
+    split_payment: "true",
+    split_merchant_id: "10012345",
+    split_amount: "40",
+  }),
+});
+```
+
+## Multi-receiver split
+
+For more than two receivers, use the `split_table` field:
+
+```ts
+setup: JSON.stringify({
+  split_payment: "true",
+  split_table: JSON.stringify([
+    { merchant_id: "10012345", amount: "60" },
+    { merchant_id: "10067890", amount: "25" },
+  ]),
+}),
+```
+
+## Using the `SplitPaymentOptions` type
+
+```ts
+import type { SplitPaymentOptions } from "@bazileros/payfast";
+
+const splitOpts: SplitPaymentOptions = {
+  merchantId: "10012345",
+  amount: "80",
+};
+
+const setup = JSON.stringify({
+  split_payment: "true",
+  split_merchant_id: splitOpts.merchantId,
+  split_amount: splitOpts.amount,
+});
+```
+
+## Notes
+
+* Split payments are configured entirely on your PayFast merchant dashboard -- the component only passes the fields through
+* Test split payments in the PayFast sandbox before going live
+* The `setup` field is included in the MD5 signature, so it cannot be tampered with client-side
+* See PayFast's [split payments documentation](https://developers.payfast.co.za/docs#split_payments) for the full field reference

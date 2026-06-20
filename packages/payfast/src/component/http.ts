@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { api } from "./_generated/api.js";
 import { httpAction } from "./_generated/server.js";
+import { validateItnSourceIp } from "./ips.js";
 
 const http = httpRouter();
 
@@ -8,6 +9,12 @@ http.route({
 	path: "/itn",
 	method: "POST",
 	handler: httpAction(async (ctx, request) => {
+		// biome-ignore lint/suspicious/noExplicitAny: httpAction ctx lacks env
+		const env = (ctx as any).env as {
+			PAYFAST_SANDBOX: string;
+			PAYFAST_PASSPHRASE: string;
+		};
+
 		const text = await request.text();
 		const pfData: Record<string, string> = {};
 		for (const part of text.split("&")) {
@@ -18,11 +25,15 @@ http.route({
 			}
 		}
 
-		// biome-ignore lint/suspicious/noExplicitAny: httpAction ctx lacks env
-		const env = (ctx as any).env as {
-			PAYFAST_SANDBOX: string;
-			PAYFAST_PASSPHRASE: string;
-		};
+		const clientIp =
+			request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+			request.headers.get("x-real-ip") ??
+			null;
+
+		if (clientIp && !validateItnSourceIp(clientIp)) {
+			return new Response("INVALID", { status: 200 });
+		}
+
 		const sandbox = env.PAYFAST_SANDBOX === "true";
 		const host = sandbox ? "sandbox.payfast.co.za" : "www.payfast.co.za";
 		const validateUrl = `https://${host}/eng/query/validate`;

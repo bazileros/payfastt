@@ -25,6 +25,18 @@ export const ITN_LOG_STATUSES = ["PROCESSED", "INVALID", "ERROR"] as const;
 
 export type ItnLogStatus = (typeof ITN_LOG_STATUSES)[number];
 
+export const PAYMENT_METHODS = [
+	"cc",
+	"dc",
+	"mt",
+	"mp",
+	"sc",
+	"ew",
+	"av",
+] as const;
+
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
 export function asTransactionStatus(
 	raw: string | undefined,
 ): TransactionStatus {

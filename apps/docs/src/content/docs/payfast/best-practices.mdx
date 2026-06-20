@@ -1,0 +1,88 @@
+---
+title: Best Practices
+description: Recommended patterns for using @bazileros/payfast
+icon: padlock
+---
+
+## Use `getUserInfo` to avoid passing `userId` everywhere
+
+```ts
+const pf = new Payfast(components.payfast, {
+  sandbox: true,
+  getUserInfo: async (ctx) => {
+    const identity = await getAuthIdentity(ctx);
+    return { userId: identity.subject };
+  },
+});
+```
+
+Then call methods without `userId`:
+
+```ts
+await pf.pauseSubscription(ctx, { token: "tok_123" });
+// userId is auto-resolved from getUserInfo
+```
+
+## Always use the sandbox during development
+
+```ts
+const pf = new Payfast(components.payfast, {
+  sandbox: process.env.NODE_ENV !== "production",
+});
+```
+
+Or better, rely on the `PAYFAST_SANDBOX` env var. The component reads it from `ctx.env`.
+
+## ITN event handlers should be idempotent
+
+PayFast may send duplicate ITNs. Your event handlers should handle this gracefully (e.g., using `upsert` patterns).
+
+```ts
+onPaymentComplete: async (ctx, pfData) => {
+  const existing = await ctx.runQuery(api.myQueries.getGrant, {
+    pfPaymentId: pfData.pf_payment_id,
+  });
+  if (!existing) {
+    await ctx.runMutation(api.myMutations.grantAccess, {
+      pfPaymentId: pfData.pf_payment_id,
+    });
+  }
+},
+```
+
+## Handle ITN failures gracefully
+
+Log and monitor `itnLogs` for `status: "INVALID"` or `status: "ERROR"` records. These indicate validation failures or processing errors.
+
+## Use `mPaymentId` for idempotency
+
+Pass your own internal payment ID via `mPaymentId` when generating checkouts. The component uses this to match ITNs to existing transactions, preventing duplicate records.
+
+## Keep PayFast credentials secure
+
+- Never hardcode credentials in client-side code
+- Use Convex environment variables (set via `npx convex env set`)
+- The `PAYFAST_PASSPHRASE` is critical. It is used for signature generation.
+- Rotate credentials periodically in the PayFast dashboard
+
+## Subscription lifecycle
+
+1. User completes subscription checkout → ITN creates subscription record
+2. Monitor `subscription_status` via ITN events or `useSubscription`
+3. When cancelled, revoke access and clean up
+4. Use `getCardUpdateUrl` to let users update payment methods without re-subscribing
+
+## Testing
+
+- Use PayFast sandbox (`PAYFAST_SANDBOX=true`) and test credentials from the PayFast dashboard
+- Trigger test ITNs from the PayFast sandbox dashboard
+- Use `useTransactions` and `useSubscriptions` to verify data matches PayFast's view
+
+## Monorepo tips
+
+- Import the component API object from your backend's generated API:
+  ```ts
+  import { components } from "@payfastt/backend/convex/_generated/api";
+  ```
+- The web app accesses PayFast via the backend package. Keep the component dependency in `packages/backend`, not `apps/web`.
+- Run `npx convex codegen` after schema changes to regenerate `_generated` files

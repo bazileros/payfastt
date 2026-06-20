@@ -32,6 +32,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
 					frequency?: number;
 					cycles?: number;
 					token?: string;
+					paymentMethod?: string;
+					setup?: string;
 					userId?: string;
 				},
 				{
@@ -216,6 +218,76 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
 				"public",
 				{ pfData: any },
 				{ status: string },
+				Name
+			>;
+			generateOnsitePaymentIdentifier: FunctionReference<
+				"action",
+				"public",
+				{
+					amount: number;
+					itemName: string;
+					itemDescription?: string;
+					mPaymentId?: string;
+					returnUrl?: string;
+					cancelUrl?: string;
+					notifyUrl?: string;
+					customInt1?: number;
+					customInt2?: number;
+					customInt3?: number;
+					customInt4?: number;
+					customInt5?: number;
+					customStr1?: string;
+					customStr2?: string;
+					customStr3?: string;
+					customStr4?: string;
+					customStr5?: string;
+					emailConfirmation?: boolean;
+					confirmationAddress?: string;
+					paymentMethod?: string;
+					setup?: string;
+					userId?: string;
+				},
+				{
+					paymentIdentifier: string;
+					signature: string;
+					transactionId: string;
+				},
+				Name
+			>;
+			chargeSubscriptionAdhoc: FunctionReference<
+				"action",
+				"public",
+				{
+					token: string;
+					amount: number;
+					itemName?: string;
+					itemDescription?: string;
+					itn?: boolean;
+					mPaymentId?: string;
+					userId?: string;
+				},
+				{ success: boolean; response: string },
+				Name
+			>;
+			refundTransaction: FunctionReference<
+				"action",
+				"public",
+				{ ptxId: string; amount?: number; userId?: string },
+				{ success: boolean; response: string },
+				Name
+			>;
+			queryTransactions: FunctionReference<
+				"action",
+				"public",
+				{ offset?: number },
+				unknown,
+				Name
+			>;
+			queryCreditCards: FunctionReference<
+				"action",
+				"public",
+				{},
+				unknown,
 				Name
 			>;
 		};

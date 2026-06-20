@@ -5,7 +5,7 @@ description: PayFast payment gateway Convex component — one-time payments, sub
 
 # @bazileros/payfast — PayFast Convex Component
 
-Integrates [PayFast](https://www.payfast.co.za) (South African payment gateway) into a Convex app. Supports Custom Integration (form redirect), REST API (subscriptions, tokenized charges, refunds), and ITN webhook processing.
+Integrates [PayFast](https://www.payfast.co.za) (South African payment gateway) into a Convex app. Supports Custom Integration (form redirect), Onsite (iframe widget), REST API (subscriptions, tokenized charges, refunds, queries), and ITN webhook processing.
 
 ## Install
 
@@ -30,7 +30,7 @@ export default app;
 
 ### 2. Set environment variables
 
-At deployment, Convex prompts you to set:
+Deployment prompts you to set these (via `npx convex env set` or the Convex dashboard):
 
 | Variable | Required | Description |
 |---|---|---|
@@ -38,8 +38,6 @@ At deployment, Convex prompts you to set:
 | `PAYFAST_MERCHANT_KEY` | Yes | PayFast merchant key |
 | `PAYFAST_PASSPHRASE` | Yes | PayFast passphrase |
 | `PAYFAST_SANDBOX` | No | Set `"true"` for sandbox |
-
-Sandbox mode can also be toggled per-checkout via the `Payfast` class constructor.
 
 ### 3. Mount the ITN webhook
 
@@ -53,7 +51,7 @@ import { registerRoutes } from "@bazileros/payfast/http";
 const http = httpRouter();
 registerRoutes(http, components.payfast, {
   events: {
-    onPaymentComplete: (ctx, event) => {
+    onPaymentComplete: (ctx, pfData) => {
       // grant access, send email, etc.
     },
   },
@@ -61,18 +59,46 @@ registerRoutes(http, components.payfast, {
 export default http;
 ```
 
-### 4. Watch transactions (React)
+### 4. Use in React — two patterns
+
+**Explicit component (traditional):**
 
 ```tsx
 import { usePayfastCheckout } from "@bazileros/payfast/react";
 import { components } from "../convex/_generated/api";
 
 function DonateButton() {
-  const { formRef, submit } = usePayfastCheckout(components.payfast, {
+  const { generateCheckout, formActionUrl, formFields, loading } =
+    usePayfastCheckout(components.payfast, {
+      amount: 100,
+      itemName: "Donation",
+    });
+
+  return <button onClick={generateCheckout} disabled={loading}>Donate R100</button>;
+}
+```
+
+**Context provider (recommended):**
+
+```tsx
+import { PayfastProvider } from "@bazileros/payfast/react";
+import { components } from "../convex/_generated/api";
+
+function Root() {
+  return (
+    <PayfastProvider component={components.payfast}>
+      <App />
+    </PayfastProvider>
+  );
+}
+
+// Inside <App>, hooks omit the component arg:
+function DonateButton() {
+  const { generateCheckout, loading } = usePayfastCheckout({
     amount: 100,
     itemName: "Donation",
   });
-  return <button onClick={submit}>Donate R100</button>;
+  // ...
 }
 ```
 
@@ -80,44 +106,114 @@ function DonateButton() {
 
 ### Server-side (inside Convex functions)
 
-Call via `components.payfast.lib.*`:
+Generate a signed checkout form (mutation):
 
 ```ts
-import { components } from "./_generated/api";
-
-// Generate a signed checkout form
-const form = await ctx.runAction(components.payfast.lib.generateCheckoutForm, {
-  amount: 100, itemName: "T-shirt", userId: user._id,
+const form = await ctx.runMutation(components.payfast.lib.generateCheckoutForm, {
+  amount: 100, itemName: "T-shirt", userId: "user_abc",
 });
+// { actionUrl, fields, signature, transactionId }
+```
 
-// List user's transactions
-const txs = await ctx.runQuery(components.payfast.lib.listTransactions, { userId: user._id });
+List transactions (query):
 
-// Subscribe
-const sub = await ctx.runMutation(components.payfast.lib.createSubscription, {
-  amount: 50, itemName: "Monthly", frequency: "Monthly", cycles: 12, userId: user._id,
+```ts
+const txs = await ctx.runQuery(components.payfast.lib.listTransactions, {
+  userId: "user_abc",
 });
+```
 
-// Manage subscription
-await ctx.runAction(components.payfast.lib.cancelSubscription, { token: sub.token });
-await ctx.runAction(components.payfast.lib.pauseSubscription, { token: sub.token });
+Manage subscriptions (actions — call PayFast REST API):
+
+```ts
+await ctx.runAction(components.payfast.lib.pauseSubscription, { token: "tok_123" });
+await ctx.runAction(components.payfast.lib.unpauseSubscription, { token: "tok_123" });
+await ctx.runAction(components.payfast.lib.cancelSubscription, { token: "tok_123" });
+await ctx.runAction(components.payfast.lib.updateSubscription, {
+  token: "tok_123", amount: 99, frequency: 1,
+});
+```
+
+Ad-hoc charge (action):
+
+```ts
+await ctx.runAction(components.payfast.lib.chargeSubscriptionAdhoc, {
+  token: "tok_123", amount: 5000, // cents
+});
+```
+
+Refund (action):
+
+```ts
+await ctx.runAction(components.payfast.lib.refundTransaction, {
+  ptxId: "ptx_abc123", amount: 50, // partial refund
+});
+```
+
+Query PayFast transaction history / credit cards (actions):
+
+```ts
+const history = await ctx.runAction(components.payfast.lib.queryTransactions, { offset: 0 });
+const cards = await ctx.runAction(components.payfast.lib.queryCreditCards, {});
+```
+
+Onsite payment identifier (action):
+
+```ts
+const { paymentIdentifier } = await ctx.runAction(
+  components.payfast.lib.generateOnsitePaymentIdentifier,
+  { amount: 100, itemName: "Donation", returnUrl: "...", cancelUrl: "..." },
+);
 ```
 
 ### Client-side (Payfast class)
 
 ```ts
 import { Payfast } from "@bazileros/payfast";
+import { components } from "./_generated/api";
 
-const pf = new Payfast({ sandbox: true, getUserInfo: () => userId });
+const pf = new Payfast(components.payfast, {
+  sandbox: true,
+  getUserInfo: async (ctx) => {
+    const identity = await getAuthIdentity(ctx);
+    return { userId: identity.subject };
+  },
+});
 
 // Typed wrapper — calls component.lib.* via runAction/runQuery
 const txs = await pf.listTransactions(ctx);
 const subs = await pf.listSubscriptions(ctx);
+await pf.pauseSubscription(ctx, { token: "tok_123" });
+await pf.chargeAdhoc(ctx, { token: "tok_123", amount: 5000 });
+await pf.refund(ctx, { ptxId: "ptx_abc123" });
 ```
+
+### React hooks
+
+```tsx
+import {
+  PayfastProvider,
+  usePayfast,
+  usePayfastCheckout,
+  useTransactions,
+  useTransaction,
+  useSubscriptions,
+  useSubscription,
+  useSubscriptionActions,
+  usePayfastOnsite,
+  useAdhocCharge,
+  useRefund,
+} from "@bazileros/payfast/react";
+```
+
+All hooks support both explicit-component and context-based calling conventions.
 
 ## Important Notes
 
 - **Tokens** in PayFast are subscription tokens, not standalone card tokens. Use `chargeSubscriptionAdhoc` for ad-hoc charges against an existing subscription.
-- **ITN validation** is automatic in `registerRoutes` — echoes back and checks signature. Only `VALID` responses are processed.
+- **ITN validation** is automatic in `registerRoutes` — source IP check + echo-back validation + signature verification. Only `VALID` responses are processed.
 - **Subscription statuses**: `active` | `paused` | `cancelled` | `completed` | `suspended` | `expired`
-- **No postinstall/preinstall scripts** — dependency model is clean (convex as dep + peer, react as peer-only).
+- **Transaction statuses**: `COMPLETE` | `PENDING` | `PROCESSING` | `CANCELLED` | `OVERDUE` | `REFUNDED` | `UNKNOWN`
+- **Not available in sandbox**: refunds, ad-hoc charges, onsite payments
+- **No postinstall/preinstall scripts** — dependency model is clean (convex as dep + peer, react as peer-only)
+- **Passphrase signing**: Custom Integration uses `&passphrase=` suffix; REST API uses sorted key=value with passphrase as a field (no suffix)

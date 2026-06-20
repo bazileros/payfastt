@@ -1,6 +1,7 @@
 {
 	"name": "@bazileros/payfast",
-	"version": "0.1.0",
+	"version": "0.2.0",
+	"private": false,
 	"type": "module",
 	"description": "PayFast payment gateway Convex component — one-time payments, subscriptions, tokenized charges, refunds, and ITN webhooks",
 	"license": "Apache-2.0",
@@ -13,7 +14,6 @@
 		"build": "tsc --project tsconfig.build.json",
 		"build:codegen": "convex codegen --component-dir ./src/component && bun run build",
 		"check-types": "tsc --noEmit",
-		"dev": "bun run build:codegen",
 		"test": "vitest run",
 		"test:watch": "vitest"
 	},

@@ -1,0 +1,408 @@
+---
+title: Vite + React SPA
+description: Integrate @bazileros/payfast with Vite and React
+icon: seti:vite
+sidebar:
+  order: 2
+---
+
+This guide covers using the PayFast Convex component in a Vite-powered React single-page application (SPA) with any client-side router (React Router, TanStack Router, or no router at all).
+
+## Project setup
+
+```bash
+npm create vite@latest my-app -- --template react-ts
+cd my-app
+npm install convex @bazileros/payfast
+npx convex dev
+```
+
+## 1. Convex configuration
+
+Create your backend config in `convex/convex.config.ts`:
+
+```ts
+import { defineApp } from "convex/server";
+import payfast from "@bazileros/payfast/convex.config";
+
+const app = defineApp();
+app.use(payfast);
+export default app;
+```
+
+Create the HTTP router in `convex/http.ts`:
+
+```ts
+import { httpRouter } from "convex/server";
+import { components } from "./_generated/api";
+import { registerRoutes } from "@bazileros/payfast/http";
+
+const http = httpRouter();
+
+registerRoutes(http, components.payfast, {
+  events: {
+    onPaymentComplete: async (ctx, pfData) => {
+      await ctx.runMutation(api.myMutations.grantAccess, {
+        pfPaymentId: pfData.pf_payment_id,
+        amount: pfData.amount_gross,
+      });
+    },
+    onSubscriptionCancelled: async (ctx, pfData) => {
+      await ctx.runMutation(api.myMutations.revokeAccess, {
+        token: pfData.token,
+      });
+    },
+  },
+});
+
+export default http;
+```
+
+Set environment variables:
+
+```bash
+npx convex env set PAYFAST_MERCHANT_ID 12345678
+npx convex env set PAYFAST_MERCHANT_KEY abc123abc123abc1
+npx convex env set PAYFAST_PASSPHRASE your-secret-passphrase
+npx convex env set PAYFAST_SANDBOX true
+```
+
+## 2. ConvexProvider + PayfastProvider
+
+In a Vite SPA, all providers live at the app root. Update `src/main.tsx`:
+
+```tsx
+import { components } from "../convex/_generated/api";
+import { PayfastProvider } from "@bazileros/payfast/react";
+import { ConvexReactClient } from "convex/react";
+import { ConvexProvider } from "convex/react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+
+const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL);
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <ConvexProvider client={convex}>
+    <PayfastProvider component={components.payfast}>
+      <App />
+    </PayfastProvider>
+  </ConvexProvider>,
+);
+```
+
+:::tip[Vite env vars]
+Vite requires the `VITE_` prefix for public env vars. In development, `npx convex dev` outputs the local Convex URL — set it in `.env.local`:
+
+```
+VITE_CONVEX_URL=http://127.0.0.1:PORT
+```
+
+In production, set `VITE_CONVEX_URL` in your hosting provider's dashboard or build-time env vars.
+:::
+
+## 3. Checkout page with React Router
+
+Here's a complete checkout page using React Router v7:
+
+```tsx
+import { usePayfastCheckout } from "@bazileros/payfast/react";
+import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+
+export default function CheckoutPage() {
+  const navigate = useNavigate();
+  const {
+    generateCheckout,
+    formActionUrl,
+    formFields,
+    loading,
+    error,
+  } = usePayfastCheckout({
+    amount: 100,
+    itemName: "Donation",
+    returnUrl: `${window.location.origin}/transactions`,
+    cancelUrl: `${window.location.origin}/checkout`,
+  });
+
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (formActionUrl && formFields && formRef.current) {
+      formRef.current.submit();
+    }
+  }, [formActionUrl, formFields]);
+
+  if (error) {
+    return (
+      <div>
+        <p>Checkout error: {error}</p>
+        <button onClick={generateCheckout}>Retry</button>
+      </div>
+    );
+  }
+
+  if (formActionUrl) {
+    return (
+      <form
+        ref={formRef}
+        action={formActionUrl}
+        method="POST"
+        style={{ display: "none" }}
+      >
+        {Object.entries(formFields!).map(([key, value]) => (
+          <input key={key} type="hidden" name={key} value={value} />
+        ))}
+      </form>
+    );
+  }
+
+  return (
+    <div>
+      <h1>Checkout</h1>
+      <p>Amount: R100</p>
+      <button onClick={generateCheckout} disabled={loading}>
+        {loading ? "Preparing..." : "Pay with PayFast"}
+      </button>
+    </div>
+  );
+}
+```
+
+## 4. Transactions page
+
+```tsx
+import { useTransactions } from "@bazileros/payfast/react";
+
+export default function TransactionsPage() {
+  const transactions = useTransactions();
+
+  if (transactions === undefined) {
+    return <p>Loading transactions...</p>;
+  }
+
+  if (transactions.length === 0) {
+    return <p>No transactions yet. Complete a checkout first.</p>;
+  }
+
+  return (
+    <div>
+      <h1>Transactions</h1>
+      <div className="grid">
+        {transactions.map((tx) => (
+          <div key={tx._id} className="card">
+            <div>Item: {tx.itemName}</div>
+            <div>Amount: R{tx.amount.toFixed(2)}</div>
+            <div>Status: {tx.status}</div>
+            <div>Date: {new Date(tx._creationTime).toLocaleDateString()}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## 5. Subscriptions page
+
+```tsx
+import {
+  useSubscriptions,
+  useSubscriptionActions,
+  useAdhocCharge,
+} from "@bazileros/payfast/react";
+import { useState } from "react";
+
+export default function SubscriptionsPage() {
+  const subscriptions = useSubscriptions();
+  const [error, setError] = useState<string | null>(null);
+
+  if (subscriptions === undefined) {
+    return <p>Loading...</p>;
+  }
+
+  return (
+    <div>
+      <h1>Subscriptions</h1>
+      {error && <p className="error">{error}</p>}
+      {subscriptions.length === 0 ? (
+        <p>No subscriptions yet.</p>
+      ) : (
+        subscriptions.map((sub) => (
+          <SubscriptionCard
+            key={sub._id}
+            token={sub.token}
+            itemName={sub.itemName}
+            amount={sub.amount}
+            status={sub.status}
+            onError={setError}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+function SubscriptionCard({
+  token,
+  itemName,
+  amount,
+  status,
+  onError,
+}: {
+  token: string;
+  itemName?: string;
+  amount?: number;
+  status?: string;
+  onError: (msg: string | null) => void;
+}) {
+  const { pause, unpause, cancel } = useSubscriptionActions(token);
+  const { charge, loading: charging } = useAdhocCharge();
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const handleAction = async (
+    action: () => Promise<void>,
+    label: string,
+  ) => {
+    setLoading(label);
+    onError(null);
+    try {
+      await action();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  return (
+    <div className="card">
+      <h3>{itemName ?? "Subscription"}</h3>
+      <p>Status: {status}</p>
+      <p>Amount: R{amount?.toFixed(2)}</p>
+      <div className="actions">
+        <button
+          onClick={() => handleAction(pause, "pausing")}
+          disabled={loading !== null}
+        >
+          {loading === "pausing" ? "..." : "Pause"}
+        </button>
+        <button
+          onClick={() => handleAction(unpause, "unpausing")}
+          disabled={loading !== null}
+        >
+          {loading === "unpausing" ? "..." : "Resume"}
+        </button>
+        <button
+          onClick={() => handleAction(cancel, "cancelling")}
+          disabled={loading !== null}
+        >
+          {loading === "cancelling" ? "..." : "Cancel"}
+        </button>
+        <button
+          onClick={() =>
+            handleAction(() => charge({ token, amount: 5000 }), "charging")
+          }
+          disabled={loading !== null}
+        >
+          {loading === "charging" ? "..." : "Charge R50"}
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+## 6. Using React Router loaders for initial data
+
+React Router v7 supports route loaders. For pages that need initial data, you can combine route loaders with Convex actions:
+
+```tsx
+// routes/transactions.tsx
+import { useLoaderData } from "react-router-dom";
+
+export async function loader() {
+  // Optional: pre-fetch server-side data via HTTP action
+  // This runs before the component renders
+  return null;
+}
+
+export default function TransactionsPage() {
+  // The Convex hook handles reactive updates on its own
+  const transactions = useTransactions();
+  // ...
+}
+```
+
+## 7. Env vars pattern
+
+```
+# .env.local (for both Vite and Convex dev)
+VITE_CONVEX_URL=http://127.0.0.1:PORT
+```
+
+The backend's `PAYFAST_*` env vars are set via `npx convex env set` — never in `.env.local`.
+
+In production, `VITE_CONVEX_URL` must be set in your build environment:
+
+| Provider | How to set |
+|---|---|
+| Netlify | Environment variables in site settings |
+| Vercel | Environment variables in project settings |
+| Cloudflare Pages | Environment variables in dashboard |
+| Docker | `--env VITE_CONVEX_URL=...` |
+
+## 8. Error handling patterns
+
+### Checkout error with retry
+
+```tsx
+const { generateCheckout, error } = usePayfastCheckout({ ... });
+
+// Network failures, signature errors, etc.
+if (error) {
+  return (
+    <div role="alert">
+      <p>{error}</p>
+      <button onClick={generateCheckout}>Try again</button>
+    </div>
+  );
+}
+```
+
+### Loading state per action
+
+Use a state machine pattern for better UX:
+
+```tsx
+type ActionState =
+  | { type: "idle" }
+  | { type: "loading"; action: string }
+  | { type: "error"; message: string }
+  | { type: "success" };
+
+const [state, setState] = useState<ActionState>({ type: "idle" });
+
+const handleRefund = async (ptxId: string) => {
+  setState({ type: "loading", action: "refunding" });
+  try {
+    await refund({ ptxId });
+    setState({ type: "success" });
+  } catch (err) {
+    setState({
+      type: "error",
+      message: err instanceof Error ? err.message : "Refund failed",
+    });
+  }
+};
+```
+
+## 9. Production checklist
+
+- [ ] Replace `VITE_CONVEX_URL` with your production Convex deployment URL
+- [ ] Set PayFast production credentials via `npx convex env set`
+- [ ] Remove `PAYFAST_SANDBOX=true` for real payments
+- [ ] Configure PayFast Notify URL: `https://YOUR_PROJECT.convex.site/payfast/itn`
+- [ ] Enable HTTPS (Vite dev uses HTTP; production must use HTTPS for PayFast redirects)
+- [ ] Build with `vite build` and deploy static assets to your host
+- [ ] Test sandbox flow end-to-end before switching to production
+- [ ] Monitor ITN delivery in PayFast dashboard → ITN history

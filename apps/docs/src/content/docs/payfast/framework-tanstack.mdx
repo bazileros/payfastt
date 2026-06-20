@@ -1,0 +1,550 @@
+---
+title: TanStack Router
+description: Integrate @bazileros/payfast with TanStack Router
+icon: seti:breadcrumb
+sidebar:
+  order: 3
+---
+
+This guide covers using the PayFast Convex component with TanStack Router (file-based or code-based routing). The example app in this monorepo uses this exact setup — this guide serves as the reference.
+
+## Project setup
+
+```bash
+npm create vite@latest my-app -- --template react-ts
+cd my-app
+npm install @tanstack/react-router convex @bazileros/payfast
+npx convex dev
+```
+
+## 1. Convex configuration
+
+Convex backend config in `convex/convex.config.ts`:
+
+```ts
+import { defineApp } from "convex/server";
+import payfast from "@bazileros/payfast/convex.config";
+
+const app = defineApp();
+app.use(payfast);
+export default app;
+```
+
+HTTP router in `convex/http.ts`:
+
+```ts
+import { httpRouter } from "convex/server";
+import { components } from "./_generated/api";
+import { registerRoutes } from "@bazileros/payfast/http";
+
+const http = httpRouter();
+
+registerRoutes(http, components.payfast, {
+  events: {
+    onPaymentComplete: async (ctx, pfData) => {
+      await ctx.runMutation(api.myMutations.grantAccess, {
+        pfPaymentId: pfData.pf_payment_id,
+        amount: pfData.amount_gross,
+        email: pfData.email_address,
+      });
+    },
+    onPaymentCancelled: async (ctx, pfData) => {
+      await ctx.runMutation(api.myMutations.releaseHold, {
+        pfPaymentId: pfData.pf_payment_id,
+      });
+    },
+    onSubscriptionCancelled: async (ctx, pfData) => {
+      await ctx.runMutation(api.myMutations.revokeAccess, {
+        token: pfData.token,
+      });
+    },
+    onSubscriptionUpdated: async (ctx, pfData) => {
+      await ctx.runMutation(api.myMutations.syncSubscription, {
+        token: pfData.token,
+        status: pfData.subscription_status,
+      });
+    },
+  },
+});
+
+export default http;
+```
+
+## 2. The Wrap pattern (ConvexProvider + PayfastProvider)
+
+TanStack Router provides a `Wrap` prop on the router instance. This is the idiomatic place to mount both providers:
+
+```tsx
+// src/main.tsx
+import { components } from "../convex/_generated/api";
+import { PayfastProvider } from "@bazileros/payfast/react";
+import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { ConvexReactClient } from "convex/react";
+import { ConvexProvider } from "convex/react";
+import ReactDOM from "react-dom/client";
+import { routeTree } from "./routeTree.gen";
+
+const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL);
+
+const router = createRouter({
+  routeTree,
+  defaultPreload: "intent",
+  scrollRestoration: true,
+  Wrap: function WrapComponent({ children }: { children: React.ReactNode }) {
+    return (
+      <ConvexProvider client={convex}>
+        <PayfastProvider component={components.payfast}>
+          {children}
+        </PayfastProvider>
+      </ConvexProvider>
+    );
+  },
+});
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}
+
+const rootElement = document.getElementById("app");
+if (!rootElement!.innerHTML) {
+  const root = ReactDOM.createRoot(rootElement!);
+  root.render(<RouterProvider router={router} />);
+}
+```
+
+:::tip[Why the Wrap prop?]
+`Wrap` wraps all routes in a single provider component. This avoids having to add `ConvexProvider` and `PayfastProvider` to every route file or to a root layout. TanStack Router applies it automatically to every page.
+:::
+
+## 3. Root route layout
+
+The root route provides the app shell with `<Outlet />`:
+
+```tsx
+// src/routes/__root.tsx
+import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react-router";
+import Header from "../components/header";
+
+interface RouterAppContext {}
+
+export const Route = createRootRouteWithContext<RouterAppContext>()({
+  component: RootComponent,
+  head: () => ({
+    meta: [
+      { title: "My App" },
+      { name: "description", content: "PayFast + TanStack Router" },
+    ],
+  }),
+});
+
+function RootComponent() {
+  return (
+    <>
+      <HeadContent />
+      <div className="app-shell">
+        <Header />
+        <Outlet />
+      </div>
+    </>
+  );
+}
+```
+
+## 4. Checkout route
+
+```tsx
+// src/routes/checkout.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import { usePayfastCheckout } from "@bazileros/payfast/react";
+import { useEffect, useRef } from "react";
+
+export const Route = createFileRoute("/checkout")({
+  component: CheckoutPage,
+});
+
+function CheckoutPage() {
+  const {
+    generateCheckout,
+    formActionUrl,
+    formFields,
+    loading,
+    error,
+  } = usePayfastCheckout({
+    amount: 100,
+    itemName: "Donation",
+    returnUrl: `${window.location.origin}/transactions`,
+    cancelUrl: `${window.location.origin}/checkout`,
+  });
+
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (formActionUrl && formFields && formRef.current) {
+      formRef.current.submit();
+    }
+  }, [formActionUrl, formFields]);
+
+  if (error) {
+    return (
+      <div className="error-banner">
+        <p>Error: {error}</p>
+        <button onClick={generateCheckout}>Retry</button>
+      </div>
+    );
+  }
+
+  if (formActionUrl) {
+    return (
+      <form ref={formRef} action={formActionUrl} method="POST" className="hidden">
+        {Object.entries(formFields!).map(([key, value]) => (
+          <input key={key} type="hidden" name={key} value={value} />
+        ))}
+      </form>
+    );
+  }
+
+  return (
+    <div>
+      <h1>Checkout</h1>
+      <button onClick={generateCheckout} disabled={loading}>
+        {loading ? "Generating..." : "Pay R100"}
+      </button>
+    </div>
+  );
+}
+```
+
+### Subscription checkout
+
+Add subscription parameters when creating the checkout:
+
+```tsx
+const { generateCheckout } = usePayfastCheckout({
+  amount: 50,
+  itemName: "Monthly Membership",
+  subscriptionType: 1,
+  recurringAmount: 50,
+  frequency: 1,
+  cycles: 12,
+  returnUrl: `${window.location.origin}/subscriptions`,
+  cancelUrl: `${window.location.origin}/checkout`,
+});
+```
+
+## 5. Transactions route
+
+```tsx
+// src/routes/transactions.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import { useTransactions } from "@bazileros/payfast/react";
+
+export const Route = createFileRoute("/transactions")({
+  component: TransactionsPage,
+});
+
+function TransactionsPage() {
+  const transactions = useTransactions();
+
+  if (transactions === undefined) {
+    return <p>Loading...</p>;
+  }
+
+  if (transactions.length === 0) {
+    return <p>No transactions yet.</p>;
+  }
+
+  return (
+    <div>
+      <h1>Transactions</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {transactions.map((tx) => (
+            <tr key={tx._id}>
+              <td>{tx.itemName}</td>
+              <td>R{tx.amount.toFixed(2)}</td>
+              <td>
+                <span className={`status-badge ${tx.status.toLowerCase()}`}>
+                  {tx.status}
+                </span>
+              </td>
+              <td>{new Date(tx._creationTime).toLocaleDateString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+```
+
+### Filtered query
+
+```tsx
+// Only show completed transactions
+const completed = useTransactions({ status: "COMPLETE", limit: 10 });
+```
+
+## 6. Subscriptions route with actions
+
+```tsx
+// src/routes/subscriptions.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import {
+  useSubscriptions,
+  useSubscriptionActions,
+} from "@bazileros/payfast/react";
+import { toast } from "sonner";
+
+export const Route = createFileRoute("/subscriptions")({
+  component: SubscriptionsPage,
+});
+
+function SubscriptionActions({ token }: { token: string }) {
+  const { pause, unpause, cancel } = useSubscriptionActions(token);
+
+  const handleAction = async (
+    action: () => Promise<void>,
+    successMsg: string,
+  ) => {
+    try {
+      await action();
+      toast.success(successMsg);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Action failed");
+    }
+  };
+
+  return (
+    <div className="actions">
+      <button onClick={() => handleAction(pause, "Subscription paused")}>
+        Pause
+      </button>
+      <button onClick={() => handleAction(unpause, "Subscription resumed")}>
+        Resume
+      </button>
+      <button onClick={() => handleAction(cancel, "Subscription cancelled")}>
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+function SubscriptionsPage() {
+  const subscriptions = useSubscriptions();
+
+  if (subscriptions === undefined) {
+    return <p>Loading...</p>;
+  }
+
+  if (subscriptions.length === 0) {
+    return <p>No subscriptions yet. Create one from the checkout page.</p>;
+  }
+
+  return (
+    <div>
+      <h1>Subscriptions</h1>
+      <div className="grid gap-4">
+        {subscriptions.map((sub) => (
+          <div key={sub._id} className="card">
+            <div className="card-header">
+              <h3>{sub.itemName}</h3>
+              <span className={`badge badge-${sub.status}`}>{sub.status}</span>
+            </div>
+            <div className="card-body">
+              {sub.amount !== undefined && <p>Amount: R{sub.amount.toFixed(2)}</p>}
+              {sub.frequency !== undefined && <p>Every {sub.frequency} months</p>}
+              {sub.cycles !== undefined && <p>{sub.cycles} cycles</p>}
+              <p className="mono">Token: {sub.token}</p>
+            </div>
+            <SubscriptionActions token={sub.token} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## 7. Ad-hoc charges
+
+```tsx
+import { useAdhocCharge } from "@bazileros/payfast/react";
+
+function ChargeButton({ token }: { token: string }) {
+  const { charge, loading, error } = useAdhocCharge();
+
+  return (
+    <div>
+      <button
+        onClick={() => charge({ token, amount: 5000, itemName: "Top-up" })}
+        disabled={loading}
+      >
+        {loading ? "Processing..." : "Charge R50"}
+      </button>
+      {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+```
+
+## 8. Refunds
+
+```tsx
+import { useRefund } from "@bazileros/payfast/react";
+
+function RefundButton({ ptxId }: { ptxId: string }) {
+  const { refund, loading, error } = useRefund();
+
+  return (
+    <div>
+      <button onClick={() => refund({ ptxId })} disabled={loading}>
+        {loading ? "Refunding..." : "Refund"}
+      </button>
+      {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+```
+
+## 9. Route loader integration
+
+TanStack Router supports route loaders for parallel data fetching. Since Convex hooks are reactive, loaders are optional but useful for:
+
+- **Loading state placement**: Show skeleton UIs at the route level
+- **Data pre-fetch**: Start fetching before the component renders
+- **Error boundaries**: Handle errors at the route level
+
+```tsx
+export const Route = createFileRoute("/dashboard")({
+  component: DashboardPage,
+  pendingComponent: DashboardSkeleton,
+  errorComponent: DashboardError,
+});
+
+function DashboardSkeleton() {
+  return <div className="skeleton">Loading dashboard...</div>;
+}
+
+function DashboardError({ error }: { error: Error }) {
+  return <div className="error">Failed to load: {error.message}</div>;
+}
+```
+
+## 10. Onsite payments
+
+PayFast's hosted iframe mode works with TanStack Router too:
+
+```tsx
+import { usePayfastOnsite } from "@bazileros/payfast/react";
+
+function OnsiteCheckoutPage() {
+  const { generateOnsite, paymentIdentifier, loading, error } =
+    usePayfastOnsite({
+      amount: 100,
+      itemName: "Donation",
+      returnUrl: `${window.location.origin}/transactions`,
+      cancelUrl: `${window.location.origin}/checkout`,
+    });
+
+  const handlePay = async () => {
+    await generateOnsite();
+    // paymentIdentifier is now available — pass to engine.js
+    if (paymentIdentifier) {
+      // Initialize PayFast iframe widget
+      window.payfast_engine?.init({
+        paymentIdentifier,
+        ...
+      });
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={handlePay} disabled={loading}>
+        {loading ? "Generating..." : "Pay Onsite"}
+      </button>
+      {error && <p>{error}</p>}
+    </div>
+  );
+}
+```
+
+Not available in sandbox mode.
+
+## 11. Convex health check page
+
+```tsx
+// src/routes/index.tsx
+import { api } from "../../convex/_generated/api";
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "convex/react";
+
+export const Route = createFileRoute("/")({
+  component: HomePage,
+});
+
+function HomePage() {
+  const healthCheck = useQuery(api.healthCheck.get);
+
+  return (
+    <div>
+      <h1>My App</h1>
+      <div className="health-check">
+        <div className={`dot ${healthCheck === "OK" ? "green" : "yellow"}`} />
+        <span>{healthCheck === undefined ? "Checking..." : "Connected"}</span>
+      </div>
+    </div>
+  );
+}
+```
+
+## 12. Server-side API in actions
+
+Use the `Payfast` class in Convex actions for server-side operations:
+
+```ts
+import { Payfast } from "@bazileros/payfast";
+import { components } from "./_generated/api";
+import { action } from "./_generated/server";
+
+const pf = new Payfast(components.payfast);
+
+export const adminRefund = action({
+  handler: async (ctx, { ptxId }: { ptxId: string }) => {
+    const result = await pf.refund(ctx, { ptxId, amount: 50 });
+    return result;
+  },
+});
+```
+
+With `getUserInfo` for auto-resolved user identity:
+
+```ts
+const pf = new Payfast(components.payfast, {
+  getUserInfo: async (ctx) => {
+    const identity = await getAuthIdentity(ctx);
+    return { userId: identity.subject };
+  },
+});
+```
+
+## 13. Production checklist
+
+- [ ] Set production PayFast credentials via `npx convex env set`
+- [ ] Remove `PAYFAST_SANDBOX=true` for real payments
+- [ ] Configure PayFast Notify URL: `https://YOUR_PROJECT.convex.site/payfast/itn`
+- [ ] Set `VITE_CONVEX_URL` in production build environment
+- [ ] Enable `scrollRestoration: true` in router config
+- [ ] Add error boundaries and loading states to every route
+- [ ] Test sandbox flow end-to-end before switching to production
+- [ ] Monitor ITN delivery in PayFast dashboard

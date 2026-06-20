@@ -1,4 +1,3 @@
-import { components } from "@payfastt/backend/convex/_generated/api";
 import { createFileRoute } from "@tanstack/react-router";
 import { useSubscriptions, useSubscriptionActions } from "@bazileros/payfast/react";
 import { toast } from "sonner";
@@ -8,10 +7,7 @@ export const Route = createFileRoute("/subscriptions")({
 });
 
 function SubscriptionRow({ token }: { token: string }) {
-  const { pause, unpause, cancel } = useSubscriptionActions(
-    components.payfast,
-    token,
-  );
+  const { pause, unpause, cancel } = useSubscriptionActions(token);
 
   return (
     <div className="flex gap-2">
@@ -68,7 +64,7 @@ function SubscriptionRow({ token }: { token: string }) {
 }
 
 function SubscriptionsPage() {
-  const subscriptions = useSubscriptions(components.payfast);
+  const subscriptions = useSubscriptions();
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">

@@ -1,0 +1,162 @@
+---
+title: "@bazileros/payfast"
+description: PayFast payment gateway for Convex with one-time payments, subscriptions, tokenized charges, refunds, and ITN webhooks
+icon: database
+---
+
+`@bazileros/payfast` integrates the [PayFast](https://www.payfast.co.za) South African payment gateway into your Convex app. It handles the two PayFast integration modes and processes ITN webhooks automatically.
+
+import { CardGrid, Card } from "@astrojs/starlight/components";
+
+## Features
+
+<CardGrid>
+  <Card title="Installation" icon="star" href="/payfast/installation">
+    Step-by-step setup, env vars, and ITN webhook configuration
+  </Card>
+  <Card title="One-time payments" icon="database" href="/payfast/checkout">
+    Generate signed PayFast checkout forms with Custom Integration redirect
+  </Card>
+  <Card title="Subscriptions" icon="random" href="/payfast/subscriptions">
+    Recurring billing with pause, cancel, update, ad-hoc charges, and refunds
+  </Card>
+  <Card title="Onsite payments" icon="seti:javascript" href="/payfast/checkout#onsite-payments-iframe">
+    Hosted iframe widget via POST /onsite/process
+  </Card>
+  <Card title="ITN Webhooks" icon="seti:javascript" href="/payfast/itn-webhooks">
+    Echo-back validation, source IP check, database persistence, and typed event handlers
+  </Card>
+  <Card title="React Hooks" icon="seti:code-search" href="/payfast/react-hooks">
+    usePayfastCheckout, useTransactions, useSubscriptions, useSubscriptionActions, useAdhocCharge, useRefund, usePayfastOnsite
+  </Card>
+  <Card title="Server-side API" icon="server" href="/payfast/server-side">
+    Payfast class with typed wrapper methods and getUserInfo auto-resolution
+  </Card>
+  <Card title="Next.js" icon="seti:react" href="/payfast/framework-nextjs">
+    App Router integration with client components and server actions
+  </Card>
+  <Card title="Vite + React" icon="seti:vite" href="/payfast/framework-vite">
+    Quick setup with Vite and React for fast prototyping
+  </Card>
+  <Card title="TanStack Router" icon="seti:react" href="/payfast/framework-tanstack">
+    Type-safe routing with TanStack Router and Convex
+  </Card>
+  <Card title="Split Payments" icon="code-branch" href="/payfast/split-payments">
+    Split transactions across multiple receivers with JSON-encoded setup field
+  </Card>
+  <Card title="React Native" icon="mobile-android" href="/payfast/framework-react-native">
+    Mobile Payments with WebView, deep linking, and Expo
+  </Card>
+  <Card title="TanStack Start" icon="seti:react" href="/payfast/framework-tanstack-start">
+    Full-stack with server functions, SSR, and middleware
+  </Card>
+  <Card title="Best Practices" icon="padlock" href="/payfast/best-practices">
+    Security, testing, idempotency, and production patterns
+  </Card>
+  <Card title="REST API queries" icon="server" href="/payfast/server-side">
+    Transaction history and stored credit card queries via PayFast REST API
+  </Card>
+</CardGrid>
+
+## Architecture
+
+```
+┌───────────────────────────────────────────────────────┐
+│                     Your Convex App                     │
+│                                                         │
+│  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐ │
+│  │  React App  │  │  convex/     │  │  convex/     │ │
+│  │             │  │  functions   │  │  http.ts     │ │
+│  │  usePayfast │──│  runAction() │  │              │ │
+│  │  *Checkout  │  │  runQuery()  │  │registerRoutes│ │
+│  │  *Onsite    │  └──────┬───────┘  └──────┬───────┘ │
+│  └─────────────┘         │                 │          │
+│                    ┌─────▼─────────────────▼─────┐    │
+│                    │  @bazileros/payfast          │    │
+│                    │  ┌───────────────────────┐  │    │
+│                    │  │ component/lib.ts      │  │    │
+│                    │  │  queries & mutations  │  │    │
+│                    │  │  actions (REST API)   │  │    │
+│                    │  ├───────────────────────┤  │    │
+│                    │  │ component/http.ts     │  │    │
+│                    │  │  ITN echo-back +      │  │    │
+│                    │  │  signature validation │  │    │
+│                    │  ├───────────────────────┤  │    │
+│                    │  │ component/api.ts      │  │    │
+│                    │  │  REST API signing     │  │    │
+│                    │  │  + callPayfastApi     │  │    │
+│                    │  ├───────────────────────┤  │    │
+│                    │  │ schema.ts             │  │    │
+│                    │  │  transactions         │  │    │
+│                    │  │  subscriptions        │  │    │
+│                    │  │  userProfiles         │  │    │
+│                    │  │  itnLogs              │  │    │
+│                    │  │  recurringLogs        │  │    │
+│                    │  └───────────────────────┘  │    │
+│                    └─────────────────────────────┘    │
+│                                                         │
+│  ┌─────────────────────────────────────┐               │
+│  │  Convex Env (ctx.env)               │               │
+│  │  PAYFAST_MERCHANT_ID                │               │
+│  │  PAYFAST_MERCHANT_KEY               │               │
+│  │  PAYFAST_PASSPHRASE                 │               │
+│  │  PAYFAST_SANDBOX                    │               │
+│  └─────────────────────────────────────┘               │
+└────────────────────┬───────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────┐
+│                     PayFast Gateway                  │
+│                                                       │
+│  POST /eng/process  (Custom Integration)             │
+│  POST /onsite/process                                │
+│  POST /eng/query/validate  (ITN echo-back)            │
+│  PUT  /subscriptions/:token/*                        │
+│  POST /subscriptions/:token/adhoc                     │
+│  POST /refunds                                       │
+│  GET  /transactions                                  │
+│  GET  /credit-cards                                  │
+└─────────────────────────────────────────────────────┘
+```
+
+## Integration modes
+
+The component supports both of PayFast's integration modes:
+
+| Mode | Use case | How it works |
+|---|---|---|
+| **Custom Integration** | One-time payments, subscription signup | Generate signed HTML form → redirect buyer to PayFast → return via return/cancel URL |
+| **Onsite Payment** | Card entry on your site via iframe | Generate payment identifier server-side → pass to engine.js client-side |
+| **REST API** | Subscription management, refunds, tokenized charges, queries | Server-to-server authenticated requests using header signing |
+
+## Quick start
+
+1. **Install the package**
+
+   ```bash
+   npm install @bazileros/payfast
+   pnpm add @bazileros/payfast
+   bun add @bazileros/payfast
+   ```
+
+2. **Register the component in your Convex backend**
+
+   ```ts
+   import { defineApp } from "convex/server";
+   import payfast from "@bazileros/payfast/convex.config";
+
+   const app = defineApp();
+   app.use(payfast);
+   export default app;
+   ```
+
+3. **Set environment variables via Convex CLI or dashboard**
+
+   ```bash
+   npx convex env set PAYFAST_MERCHANT_ID    your_merchant_id
+   npx convex env set PAYFAST_MERCHANT_KEY   your_merchant_key
+   npx convex env set PAYFAST_PASSPHRASE     your_passphrase
+   npx convex env set PAYFAST_SANDBOX        true
+   ```
+
+4. **See the [Installation guide](/payfast/installation)** for the ITN webhook setup and full walkthrough.
