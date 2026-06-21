@@ -1,0 +1,89 @@
+---
+title: Payment Methods
+description: Restrict which payment methods buyers see during PayFast checkout
+---
+
+PayFast supports multiple payment methods. The `paymentMethod` field lets you restrict which methods are shown to the buyer.
+
+## Supported methods
+
+| Value | Method | Description |
+|---|---|---|
+| `cc` | Credit/Debit Card | Visa, Mastercard, American Express |
+| `dc` | Discovery Card | Discovery card transactions |
+| `mt` | Mobile Money | Mobile wallet payments |
+| `mp` | Maestro | Maestro debit cards |
+| `sc` | Store Cash | Cash payments at retail stores |
+| `ew` | E-Wallet | Digital wallet payments |
+| `av` | Authenticated Voucher | Voucher-based payments |
+
+## Usage
+
+Pass the `paymentMethod` option to any checkout function:
+
+```tsx
+import { usePayfastCheckout } from "@bazileros/payfast/react";
+
+function CardOnlyCheckout() {
+  const { generateCheckout } = usePayfastCheckout(components.payfast, {
+    amount: 100,
+    itemName: "Widget",
+    paymentMethod: "cc",
+  });
+
+  return <button onClick={generateCheckout}>Pay with Card</button>;
+}
+```
+
+### Server-side
+
+```ts
+import { Payfast } from "@bazileros/payfast";
+
+const form = await ctx.runAction(components.payfast.lib.generateCheckoutForm, {
+  amount: 100,
+  itemName: "Widget",
+  paymentMethod: "cc",
+});
+```
+
+### Onsite payments
+
+```tsx
+import { usePayfastOnsite } from "@bazileros/payfast/react";
+
+const { generateOnsite } = usePayfastOnsite(components.payfast, {
+  amount: 100,
+  itemName: "Widget",
+  returnUrl: "https://mysite.com/success",
+  cancelUrl: "https://mysite.com/cancel",
+  paymentMethod: "ew",
+});
+```
+
+### Subscriptions
+
+```tsx
+usePayfastCheckout(components.payfast, {
+  amount: 100,
+  itemName: "Monthly plan",
+  subscriptionType: 2,
+  recurringAmount: 50,
+  frequency: 1,
+  paymentMethod: "cc",
+});
+```
+
+## TypeScript
+
+Import the `PaymentMethod` type:
+
+```ts
+import type { PaymentMethod } from "@bazileros/payfast";
+```
+
+## Notes
+
+- If omitted, PayFast shows all available methods for your merchant account
+- Not all methods may be enabled for your PayFast merchant account — check your PayFast dashboard
+- The sandbox environment may not support all payment methods
