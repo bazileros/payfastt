@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 (2026-06-20)
+## 0.2.0 (2026-06-21)
 
 ### Features
 
@@ -27,7 +27,9 @@
 
 ### Fixes
 
-- Fixed `registerRts` → `registerRoutes` typo in architecture diagram
+- Fixed `ctx.env` type errors in action handlers (`generateCheckoutForm`, `generateOnsitePaymentIdentifier`, `callSubscriptionApi`) by using typed cast pattern
+- Replaced `ctx: any` on `callSubscriptionApi` with documented `CallSubscriptionCtx` type
+- Simplified `handleITN` signature with cleaner `ctx: any` annotation
 - Normalized em dashes across all doc pages
 - Fixed invalid icon names (`seti:next` → `seti:react`/`seti:vite`, `mobile` → `mobile-android`, `sharing` → `code-branch`)
 - Fixed Tab/Tabs component usage in `installation.mdx`

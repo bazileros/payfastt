@@ -13,6 +13,13 @@ import { callPayfastApi } from "./api.js";
 import { md5 } from "./md5.js";
 import { asTransactionStatus } from "./statuses.js";
 
+type CallSubscriptionCtx = {
+	// biome-ignore lint/suspicious/noExplicitAny: runQuery signature differs between ctx types
+	runQuery: any;
+	// biome-ignore lint/suspicious/noExplicitAny: runMutation signature differs between ctx types
+	runMutation: any;
+};
+
 export const generateCheckoutForm = mutation({
 	args: {
 		amount: v.number(),
@@ -50,7 +57,8 @@ export const generateCheckoutForm = mutation({
 			PAYFAST_MERCHANT_KEY,
 			PAYFAST_PASSPHRASE,
 			PAYFAST_SANDBOX,
-		} = ctx.env as Env;
+			// biome-ignore lint/suspicious/noExplicitAny: handler ctx type lacks env
+		} = (ctx as any).env as Env;
 		const host =
 			PAYFAST_SANDBOX === "true"
 				? "sandbox.payfast.co.za"
@@ -282,8 +290,7 @@ export const _addRecurringLog = internalMutation({
 });
 
 async function callSubscriptionApi(
-	// biome-ignore lint/suspicious/noExplicitAny: builder ctx type lacks env
-	ctx: any,
+	ctx: CallSubscriptionCtx,
 	token: string,
 	action: string,
 	opts?: { bodyFields?: Record<string, string>; userId?: string },
@@ -293,7 +300,8 @@ async function callSubscriptionApi(
 	});
 	if (!sub) throw new Error(`Subscription not found: ${token}`);
 
-	const env = ctx.env as Env;
+	// biome-ignore lint/suspicious/noExplicitAny: Convex action ctx lacks env
+	const env = (ctx as any).env as Env;
 	const path = `/subscriptions/${encodeURIComponent(token)}/${action}`;
 
 	const result = await callPayfastApi("PUT", path, env, {
@@ -573,7 +581,8 @@ export const generateOnsitePaymentIdentifier = action({
 			PAYFAST_MERCHANT_KEY,
 			PAYFAST_PASSPHRASE,
 			PAYFAST_SANDBOX,
-		} = ctx.env as Env;
+			// biome-ignore lint/suspicious/noExplicitAny: action ctx lacks env
+		} = (ctx as any).env as Env;
 
 		if (PAYFAST_SANDBOX === "true") {
 			throw new Error("Onsite payments are not available in sandbox mode");
@@ -670,17 +679,15 @@ export const generateOnsitePaymentIdentifier = action({
 
 export const processITN = mutation({
 	args: { pfData: v.any() },
-	handler: async (ctx, args) => {
+	// biome-ignore lint/suspicious/noExplicitAny: builder ctx type lacks env
+	handler: async (ctx: any, args) => {
 		return await handleITN(ctx, args.pfData as Record<string, string>);
 	},
 });
 
-async function handleITN(
-	// biome-ignore lint/suspicious/noExplicitAny: builder ctx type lacks env+db+fetch
-	ctx: any,
-	pfData: Record<string, string>,
-) {
-	const { PAYFAST_SANDBOX } = ctx.env as Env;
+// biome-ignore lint/suspicious/noExplicitAny: handleITN uses ctx.db ops with values that may be undefined
+async function handleITN(ctx: any, pfData: Record<string, string>) {
+	const { PAYFAST_SANDBOX } = ctx.env;
 	const host =
 		PAYFAST_SANDBOX === "true" ? "sandbox.payfast.co.za" : "www.payfast.co.za";
 	const url = `https://${host}/eng/query/validate`;
