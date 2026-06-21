@@ -36,7 +36,11 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          npm config set //registry.npmjs.org/:_authToken="$NODE_AUTH_TOKEN"
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN secret is empty or not set"
+            exit 1
+          fi
+          echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}" > .npmrc
           npm publish --provenance --access public
 
       - name: Notify failure
