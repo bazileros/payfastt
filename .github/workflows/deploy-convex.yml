@@ -31,7 +31,7 @@ jobs:
         working-directory: packages/payfast
 
       - name: Deploy to Convex
-        run: npx convex deploy
+        run: npx --yes convex deploy
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
 
