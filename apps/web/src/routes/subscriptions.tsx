@@ -80,7 +80,7 @@ function SubscriptionsPage() {
 				</p>
 			) : (
 				<div className="grid gap-4">
-					{subscriptions.map((sub) => (
+					{subscriptions.map((sub: (typeof subscriptions)[number]) => (
 						<div key={sub._id} className="rounded-md border p-4">
 							<div className="mb-2 flex items-center justify-between">
 								<span className="font-medium">{sub.itemName}</span>

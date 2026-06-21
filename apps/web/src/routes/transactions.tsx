@@ -29,7 +29,7 @@ function TransactionsPage() {
 							</tr>
 						</thead>
 						<tbody>
-							{transactions.map((tx) => (
+							{transactions.map((tx: (typeof transactions)[number]) => (
 								<tr key={tx._id} className="border-b last:border-0">
 									<td className="px-4 py-2 font-mono text-xs">{tx._id}</td>
 									<td className="px-4 py-2">{tx.itemName}</td>
