@@ -1,3 +1,5 @@
+![PayFast](Payfast-logo.svg)
+
 # @bazileros/payfast — PayFast Convex Component
 
 PayFast payment gateway integration for Convex apps. One-time payments (Custom Integration form redirect), recurring billing, tokenized charges, refunds, and ITN webhook processing.
