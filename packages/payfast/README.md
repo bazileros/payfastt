@@ -75,6 +75,69 @@ function DonateButton() {
 }
 ```
 
+### Payment method
+
+Restrict which payment methods the buyer sees:
+
+```tsx
+usePayfastCheckout(components.payfast, {
+  amount: 100,
+  itemName: "Widget",
+  paymentMethod: "cc",           // card only
+  // paymentMethod: "dc",        // Discovery card
+  // paymentMethod: "mt",        // mobile money
+  // paymentMethod: "ew",        // e-wallet
+  // paymentMethod: "sc",        // store cash
+});
+```
+
+Value: `cc` | `dc` | `mt` | `mp` | `sc` | `ew` | `av`
+
+### Split payments
+
+Split a transaction across multiple receivers (marketplaces, platform fees):
+
+```tsx
+import type { SplitPaymentOptions } from "@bazileros/payfast";
+
+usePayfastCheckout(components.payfast, {
+  amount: 100,
+  itemName: "Marketplace sale",
+  setup: JSON.stringify({
+    split_payments: [
+      { merchant_id: "10000123", percentage: 90 },
+      { merchant_id: "10000456", percentage: 10 },
+    ] satisfies SplitPaymentOptions,
+  }),
+});
+```
+
+Or pass raw JSON for custom PayFast fields:
+
+```tsx
+usePayfastCheckout(components.payfast, {
+  amount: 100,
+  itemName: "Widget",
+  setup: JSON.stringify({ split_token: "tok_abc123" }),
+});
+```
+
+### Onsite payments
+
+Hosted iframe widget — buyer enters card details on your site:
+
+```tsx
+import { usePayfastOnsite } from "@bazileros/payfast/react";
+
+const { generateOnsite, paymentIdentifier } = usePayfastOnsite(components.payfast, {
+  amount: 100,
+  itemName: "Widget",
+  returnUrl: "https://mysite.com/success",
+  cancelUrl: "https://mysite.com/cancel",
+});
+// Pass paymentIdentifier to PayFast engine.js
+```
+
 ### List transactions
 
 ```tsx
