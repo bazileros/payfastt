@@ -45,7 +45,7 @@ npx convex env set PAYFAST_SANDBOX      true
 
 ## Codegen
 
-When you change the Convex component schema (`packages/payfast/src/component/schema.ts`):
+When you change the Convex component schema (`packages/payfast/src/component/functions/schema.ts`):
 
 ```bash
 cd packages/payfast
@@ -81,10 +81,10 @@ Tests use `convex-test` for in-memory Convex execution and `vitest` edge-runtime
 
 ## Adding a new feature
 
-1. **Component function** — add to `packages/payfast/src/component/lib.ts` (query/mutation/action)
+1. **Component function** — add to `packages/payfast/src/component/functions/lib.ts` (query/mutation/action)
 2. **Expose in client** — add wrapper to `packages/payfast/src/client/index.ts` (`Payfast` class)
 3. **React hook** — add to `packages/payfast/src/react/index.ts`
-4. **Test** — add to `packages/payfast/src/client/index.test.ts` or `packages/payfast/src/component/*.test.ts`
+4. **Test** — add to `packages/payfast/src/client/index.test.ts` or `packages/payfast/src/component/functions/*.test.ts`
 5. **Document** — update `apps/docs/src/content/docs/payfast/` and `SKILL.md`
 
 ## Publishing

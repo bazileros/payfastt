@@ -1,10 +1,10 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useState } from "react";
-import type { ComponentApi } from "../component/_generated/component.js";
+import type { ComponentApi } from "../component/types.js";
 import type {
 	SubscriptionStatus,
 	TransactionStatus,
-} from "../component/statuses.js";
+} from "../component/functions/statuses.js";
 import { PayfastProvider, usePayfast } from "./context.js";
 
 export { PayfastProvider, usePayfast };

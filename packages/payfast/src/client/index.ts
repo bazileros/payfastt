@@ -6,12 +6,12 @@ import type {
 	HttpRouter,
 } from "convex/server";
 import { httpActionGeneric } from "convex/server";
-import type { ComponentApi } from "../component/_generated/component.js";
-import { validateItnSourceIp } from "../component/ips.js";
+import type { ComponentApi } from "../component/types.js";
+import { validateItnSourceIp } from "../component/functions/ips.js";
 import type {
 	SubscriptionStatus,
 	TransactionStatus,
-} from "../component/statuses.js";
+} from "../component/functions/statuses.js";
 
 type QueryCtx = Pick<GenericQueryCtx<GenericDataModel>, "runQuery">;
 type MutationCtx = Pick<

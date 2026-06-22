@@ -204,8 +204,8 @@ No postinstall/preinstall scripts. Dependency model: convex as dep + peer (same 
 
 ## Architecture
 
-- **Component functions** (`src/component/lib.ts`) — Convex queries/mutations/actions for transactions, subscriptions, checkout form generation
-- **HTTP handler** (`src/component/http.ts`) — ITN webhook with echo-back validation + signature check
+- **Component functions** (`src/component/functions/lib.ts`) — Convex queries/mutations/actions for transactions, subscriptions, checkout form generation
+- **HTTP handler** (`src/component/functions/http.ts`) — ITN webhook with echo-back validation + signature check
 - **Client class** (`src/client/index.ts`) — `Payfast` class with typed wrapper methods, `registerRoutes` helper, `ItnEventHandlers`
 - **React hooks** (`src/react/index.ts`) — Thin wrappers over `useQuery`, `useMutation`, `useAction`
 

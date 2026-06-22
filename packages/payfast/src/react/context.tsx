@@ -1,5 +1,5 @@
 import { createContext, type ReactNode, useContext } from "react";
-import type { ComponentApi } from "../component/_generated/component.js";
+import type { ComponentApi } from "../component/types.js";
 
 const PayfastContext = createContext<ComponentApi | null>(null);
 

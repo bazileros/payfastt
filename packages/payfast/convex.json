@@ -1,4 +1,4 @@
 {
-	"functions": "src/component",
+	"functions": "src/component/functions",
 	"$schema": "./node_modules/convex/schemas/convex.schema.json"
 }

@@ -140,7 +140,8 @@ payfastt/
 │   ├── payfast/          # @bazileros/payfast — the Convex component
 │   │   ├── src/
 │   │   │   ├── client/   # Payfast class + registerRoutes helper
-│   │   │   ├── component/# Convex component functions (queries, mutations, actions, HTTP)
+│   │   │   ├── component/  # Component config + types
+│   │   │   │   └── functions/  # Queries, mutations, actions, schema, HTTP routes
 │   │   │   └── react/    # React hooks
 │   │   └── SKILL.md      # AI agent skill file (skills.sh compatible)
 │   ├── backend/          # Example Convex backend using the component

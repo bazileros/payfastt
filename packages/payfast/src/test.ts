@@ -1,8 +1,8 @@
 import type { GenericSchema, SchemaDefinition } from "convex/server";
 import type { TestConvex } from "convex-test";
-import schema from "./component/schema.js";
+import schema from "./component/functions/schema.js";
 
-const modules = import.meta.glob("./component/**/*.ts");
+const modules = import.meta.glob("./component/functions/**/*.ts");
 
 export function register(
 	t: TestConvex<SchemaDefinition<GenericSchema, boolean>>,
