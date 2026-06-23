@@ -27,7 +27,10 @@ export default defineSchema({
 		billingDate: v.optional(v.string()),
 		signature: v.string(),
 		userId: v.optional(v.string()),
-	}).index("userId", ["userId"]).index("mPaymentId", ["mPaymentId"]).index("pfPaymentId", ["pfPaymentId"]),
+	})
+		.index("userId", ["userId"])
+		.index("mPaymentId", ["mPaymentId"])
+		.index("pfPaymentId", ["pfPaymentId"]),
 	subscriptions: defineTable({
 		token: v.string(),
 		status: v.string(),
@@ -38,7 +41,9 @@ export default defineSchema({
 		nextRunDate: v.optional(v.string()),
 		itemName: v.string(),
 		userId: v.optional(v.string()),
-	}).index("userId", ["userId"]).index("token", ["token"]),
+	})
+		.index("userId", ["userId"])
+		.index("token", ["token"]),
 	userProfiles: defineTable({
 		userId: v.string(),
 		email: v.optional(v.string()),

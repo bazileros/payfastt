@@ -11,12 +11,11 @@
 		"directory": "packages/payfast"
 	},
 	"scripts": {
-		"clean": "rm -rf dist",
+		"clean": "rm -rf dist tsconfig.build.tsbuildinfo tsconfig.tsbuildinfo",
 		"codegen": "convex codegen --component-dir ./src/component",
 		"prebuild": "bun run clean && bun run codegen",
 		"build": "tsc --project tsconfig.build.json",
 		"postbuild": "mkdir -p dist/component/functions && cp -r src/component/functions/_generated dist/component/functions/_generated",
-		"build:codegen": "bun run build",
 		"dev:watch": "tsc --build tsconfig.build.json -w",
 		"check-types": "tsc --noEmit",
 		"test": "vitest run",

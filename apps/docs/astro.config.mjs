@@ -6,7 +6,10 @@ import { defineConfig } from "astro/config";
 export default defineConfig({
 	site: "https://pfdocs.surestrat.xyz",
 	output: "server",
-	adapter: cloudflare({ prerenderEnvironment: "node" }),
+	adapter: cloudflare({
+		configPath: "wrangler.jsonc",
+		prerenderEnvironment: "node",
+	}),
 	integrations: [
 		starlight({
 			title: "PayFast Docs",

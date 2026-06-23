@@ -11,8 +11,8 @@ import {
 } from "./_generated/server.js";
 import { callPayfastApi } from "./api.js";
 import { md5 } from "./md5.js";
-import { asTransactionStatus } from "./statuses.js";
 import schema from "./schema.js";
+import { asTransactionStatus } from "./statuses.js";
 
 const transactionDoc = schema.tables.transactions.validator.extend({
 	_id: v.id("transactions"),
@@ -825,11 +825,13 @@ async function handleITN(ctx: any, pfData: Record<string, string>) {
 	}
 
 	if (pfSubscriptionType) {
-		const existingSub = pfToken ? await ctx.db
-			.query("subscriptions")
-			// biome-ignore lint/suspicious/noExplicitAny: ctx is any so index query type can't be inferred
-			.withIndex("token", (q: any) => q.eq("token", pfToken))
-			.first() : null;
+		const existingSub = pfToken
+			? await ctx.db
+					.query("subscriptions")
+					// biome-ignore lint/suspicious/noExplicitAny: ctx is any so index query type can't be inferred
+					.withIndex("token", (q: any) => q.eq("token", pfToken))
+					.first()
+			: null;
 
 		if (existingSub) {
 			await ctx.db.patch(existingSub._id, {

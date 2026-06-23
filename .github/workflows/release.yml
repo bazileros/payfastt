@@ -1,0 +1,61 @@
+name: Release
+on:
+  push:
+    branches: [main]
+    paths: ["packages/payfast/**"]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump type
+        required: true
+        default: patch
+        type: choice
+        options: [patch, minor, major]
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  release:
+    needs: [test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Bump version and tag
+        working-directory: packages/payfast
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BUMP="${{ inputs.bump || 'patch' }}"
+          npm version "$BUMP" -m "chore(release): v%s [skip ci]"
+          git push origin HEAD --tags
+
+      - name: Build
+        run: bun run build --filter=@bazileros/payfast
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish to npm with provenance
+        working-directory: packages/payfast
+        run: npm publish --provenance --access public
+
+      - name: Notify failure
+        if: failure()
+        run: echo "::error::Release failed"

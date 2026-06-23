@@ -20,7 +20,7 @@ bun install
 bun run bootstrap
 
 # Or step by step:
-cd packages/payfast && bun run build:codegen  # codegen → tsc
+cd packages/payfast && bun run build
 cd ../..
 bun run build                                  # turbo build all
 ```
