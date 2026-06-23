@@ -13,7 +13,7 @@
 	"scripts": {
 		"clean": "rm -rf dist tsconfig.build.tsbuildinfo tsconfig.tsbuildinfo",
 		"codegen": "convex codegen --component-dir ./src/component",
-		"prebuild": "bun run clean && bun run codegen",
+		"prebuild": "bun run clean && if [ -n \"$CONVEX_DEPLOYMENT\" ]; then bun run codegen; else echo 'Skipping codegen (no CONVEX_DEPLOYMENT)'; fi",
 		"build": "tsc --project tsconfig.build.json",
 		"postbuild": "mkdir -p dist/component/functions && cp -r src/component/functions/_generated dist/component/functions/_generated",
 		"dev:watch": "tsc --build tsconfig.build.json -w",
