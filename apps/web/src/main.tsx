@@ -1,5 +1,3 @@
-import { PayfastProvider } from "@bazileros/payfast/react";
-import { components } from "@payfastt/backend/convex/_generated/api";
 import { env } from "@payfastt/env/web";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
@@ -17,13 +15,7 @@ const router = createRouter({
 	defaultPendingComponent: () => <Loader />,
 	context: {},
 	Wrap: function WrapComponent({ children }: { children: React.ReactNode }) {
-		return (
-			<ConvexProvider client={convex}>
-				<PayfastProvider component={components.payfast}>
-					{children}
-				</PayfastProvider>
-			</ConvexProvider>
-		);
+		return <ConvexProvider client={convex}>{children}</ConvexProvider>;
 	},
 });
 

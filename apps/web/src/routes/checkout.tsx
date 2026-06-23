@@ -1,22 +1,42 @@
-import { usePayfastCheckout } from "@bazileros/payfast/react";
-import { components } from "@payfastt/backend/convex/_generated/api";
+import { api } from "@payfastt/backend/convex/_generated/api";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { useMutation } from "convex/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/checkout")({
 	component: CheckoutPage,
 });
 
 function CheckoutPage() {
-	const { generateCheckout, formActionUrl, formFields, loading, error } =
-		usePayfastCheckout(components.payfast, {
-			amount: 100,
-			itemName: "Donation",
-			returnUrl: `${window.location.origin}/transactions`,
-			cancelUrl: `${window.location.origin}/checkout`,
-		});
-
+	const generateCheckoutCb = useMutation(api.payfast.generateCheckoutForm);
+	const [formActionUrl, setFormActionUrl] = useState<string | null>(null);
+	const [formFields, setFormFields] = useState<Record<string, string> | null>(
+		null,
+	);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 	const formRef = useRef<HTMLFormElement>(null);
+
+	const generateCheckout = useCallback(async () => {
+		setLoading(true);
+		setError(null);
+		try {
+			const result = await generateCheckoutCb({
+				amount: 100,
+				itemName: "Donation",
+				returnUrl: `${window.location.origin}/transactions`,
+				cancelUrl: `${window.location.origin}/checkout`,
+			});
+			setFormActionUrl(result.actionUrl);
+			setFormFields(result.fields);
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : "Checkout generation failed",
+			);
+		} finally {
+			setLoading(false);
+		}
+	}, [generateCheckoutCb]);
 
 	useEffect(() => {
 		if (formActionUrl && formFields && formRef.current) {

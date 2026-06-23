@@ -1,8 +1,6 @@
-import {
-	useSubscriptionActions,
-	useSubscriptions,
-} from "@bazileros/payfast/react";
+import { api } from "@payfastt/backend/convex/_generated/api";
 import { createFileRoute } from "@tanstack/react-router";
+import { useAction, useQuery } from "convex/react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/subscriptions")({
@@ -10,7 +8,9 @@ export const Route = createFileRoute("/subscriptions")({
 });
 
 function SubscriptionRow({ token }: { token: string }) {
-	const { pause, unpause, cancel } = useSubscriptionActions(token);
+	const pause = useAction(api.payfast.pauseSubscription);
+	const unpause = useAction(api.payfast.unpauseSubscription);
+	const cancel = useAction(api.payfast.cancelSubscription);
 
 	return (
 		<div className="flex gap-2">
@@ -18,7 +18,7 @@ function SubscriptionRow({ token }: { token: string }) {
 				type="button"
 				onClick={async () => {
 					try {
-						await pause();
+						await pause({ token });
 						toast.success("Subscription paused");
 					} catch (err) {
 						toast.error(err instanceof Error ? err.message : "Failed to pause");
@@ -32,7 +32,7 @@ function SubscriptionRow({ token }: { token: string }) {
 				type="button"
 				onClick={async () => {
 					try {
-						await unpause();
+						await unpause({ token });
 						toast.success("Subscription resumed");
 					} catch (err) {
 						toast.error(
@@ -48,7 +48,7 @@ function SubscriptionRow({ token }: { token: string }) {
 				type="button"
 				onClick={async () => {
 					try {
-						await cancel();
+						await cancel({ token });
 						toast.success("Subscription cancelled");
 					} catch (err) {
 						toast.error(
@@ -65,7 +65,7 @@ function SubscriptionRow({ token }: { token: string }) {
 }
 
 function SubscriptionsPage() {
-	const subscriptions = useSubscriptions();
+	const subscriptions = useQuery(api.payfast.listSubscriptions);
 
 	return (
 		<div className="container mx-auto max-w-4xl px-4 py-8">

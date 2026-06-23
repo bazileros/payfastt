@@ -11,6 +11,7 @@
 import type * as checkout from "../checkout.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as http from "../http.js";
+import type * as payfast from "../payfast.js";
 import type * as subscriptions from "../subscriptions.js";
 import type * as transactions from "../transactions.js";
 
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   checkout: typeof checkout;
   healthCheck: typeof healthCheck;
   http: typeof http;
+  payfast: typeof payfast;
   subscriptions: typeof subscriptions;
   transactions: typeof transactions;
 }>;
