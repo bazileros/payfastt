@@ -37,11 +37,25 @@ jobs:
 
       - name: Bump version and tag
         working-directory: packages/payfast
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           BUMP="${{ inputs.bump || 'patch' }}"
-          npm version "$BUMP" -m "chore(release): v%s [skip ci]"
+          NEW_VERSION=$(bun -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const [maj, min, pat] = pkg.version.split('.').map(Number);
+            if ('$BUMP' === 'major') pkg.version = \`\${maj+1}.0.0\`;
+            else if ('$BUMP' === 'minor') pkg.version = \`\${maj}.\${min+1}.0\`;
+            else pkg.version = \`\${maj}.\${min}.\${pat+1}\`;
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, '\t') + '\n');
+            console.log(pkg.version);
+          ")
+          echo "Bumped to v$NEW_VERSION"
+          git add package.json
+          git commit -m "chore(release): v${NEW_VERSION} [skip ci]"
+          git tag "v${NEW_VERSION}"
           git push origin HEAD --tags
 
       - name: Build
