@@ -1,6 +1,6 @@
 {
 	"name": "@bazileros/payfast",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"private": false,
 	"type": "module",
 	"description": "PayFast payment gateway Convex component — one-time payments, subscriptions, tokenized charges, refunds, and ITN webhooks",
